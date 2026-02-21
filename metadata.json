@@ -1,0 +1,5 @@
+{
+  "name": "五运六气 AHI 健康分析",
+  "description": "基于传统中医运气学说与 AHI 天人和谐指数的 60 年健康 K 线图生成系统。",
+  "requestFramePermissions": []
+}
