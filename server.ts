@@ -69,7 +69,7 @@ class HeavenlyStem {
   }
 
   static fromYear(year: number) {
-    return this.list()[(year - 4) % 10];
+    return this.list()[((year - 4) % 10 + 10) % 10];
   }
 }
 
@@ -92,7 +92,7 @@ class EarthlyBranch {
   }
 
   static fromYear(year: number) {
-    return this.list()[(year - 4) % 12];
+    return this.list()[((year - 4) % 12 + 12) % 12];
   }
 }
 
@@ -121,29 +121,39 @@ class QiType {
 
 class AstronomyEngine {
   static getExactJieqi(year: number, termName: string): Date {
-    const termMonths: Record<string, number> = {
-      "小寒": 1, "大寒": 1, "立春": 2, "雨水": 2, "惊蛰": 3, "春分": 3,
-      "清明": 4, "谷雨": 4, "立夏": 5, "小满": 5, "芒种": 6, "夏至": 6,
-      "小暑": 7, "大暑": 7, "立秋": 8, "处暑": 8, "白露": 9, "秋分": 9,
-      "寒露": 10, "霜降": 10, "立冬": 11, "小雪": 11, "大雪": 12, "冬至": 12
-    };
-    const m = termMonths[termName];
-    if (!m) throw new Error(`未知的节气名称: ${termName}`);
-
-    const testDays = [15, 5, 25];
-    let jieqiObj: any = null;
-    for (const d of testDays) {
-      const lunar = Solar.fromYmd(year, m, d).getLunar();
-      jieqiObj = lunar.getJieQiTable()[termName];
-      if (jieqiObj) break;
+    // 尝试在目标年份及其前一年搜索，以处理跨阴历年的情况
+    const checkYears = [year, year - 1];
+    for (const y of checkYears) {
+      try {
+        // 选一个年中日期确保在当前阴历年内
+        const lunar = Solar.fromYmd(y, 6, 15).getLunar();
+        const jieqiObj = lunar.getJieQiTable()[termName];
+        if (jieqiObj) {
+          const dt = new Date(
+            jieqiObj.getYear(), jieqiObj.getMonth() - 1, jieqiObj.getDay(),
+            jieqiObj.getHour(), jieqiObj.getMinute(), jieqiObj.getSecond()
+          );
+          if (dt.getFullYear() === year) return dt;
+        }
+      } catch (e) {
+        console.error(`Error finding jieqi ${termName} in year ${y}:`, e);
+      }
+    }
+    
+    // 备选方案：直接遍历月份搜索
+    for (let m = 1; m <= 12; m++) {
+      const lunar = Solar.fromYmd(year, m, 15).getLunar();
+      const jieqiObj = lunar.getJieQiTable()[termName];
+      if (jieqiObj) {
+        const dt = new Date(
+          jieqiObj.getYear(), jieqiObj.getMonth() - 1, jieqiObj.getDay(),
+          jieqiObj.getHour(), jieqiObj.getMinute(), jieqiObj.getSecond()
+        );
+        if (dt.getFullYear() === year) return dt;
+      }
     }
 
-    if (!jieqiObj) throw new Error(`无法定位 ${year}年 的 ${termName} 节气时间`);
-    
-    return new Date(
-      jieqiObj.getYear(), jieqiObj.getMonth() - 1, jieqiObj.getDay(),
-      jieqiObj.getHour(), jieqiObj.getMinute(), jieqiObj.getSecond()
-    );
+    throw new Error(`无法定位 ${year}年 的 ${termName} 节气时间`);
   }
 }
 

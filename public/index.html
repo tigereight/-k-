@@ -358,6 +358,8 @@
             const month = parseInt(monthSelect.value);
             const day = parseInt(daySelect.value);
 
+            console.log('Calculating for:', { year, month, day });
+
             try {
                 const response = await fetch('/api/calculate', {
                     method: 'POST',
@@ -365,13 +367,18 @@
                     body: JSON.stringify({ year, month, day })
                 });
 
-                if (!response.ok) throw new Error('计算失败');
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || '计算失败');
+                }
 
                 const data = await response.json();
+                console.log('Calculation result:', data);
                 currentData = data;
                 updateUI(data);
             } catch (error) {
-                alert(error.message);
+                console.error('Calculation error:', error);
+                alert('计算出错: ' + error.message);
             }
         });
 
@@ -445,22 +452,40 @@
         });
 
         function updateUI(data) {
-            document.getElementById('summary-ganzhi').textContent = data.wylq_summary.ganzhi;
-            document.getElementById('summary-suiyun').textContent = data.wylq_summary.suiyun;
-            document.getElementById('summary-sitian').textContent = data.wylq_summary.sitian;
-            document.getElementById('summary-zaiquan').textContent = data.wylq_summary.zaiquan;
+            console.log('Updating UI with data:', data);
             
-            document.getElementById('fortune-step').textContent = `第 ${data.wylq_summary.fortune_step} 运`;
-            document.getElementById('summary-fortune-host').textContent = data.wylq_summary.fortune_host;
-            document.getElementById('summary-fortune-guest').textContent = data.wylq_summary.fortune_guest;
+            const safeSetText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = text || '--';
+                } else {
+                    console.warn(`Element with id "${id}" not found`);
+                }
+            };
+
+            safeSetText('summary-ganzhi', data.wylq_summary.ganzhi);
+            safeSetText('summary-suiyun', data.wylq_summary.suiyun);
+            safeSetText('summary-sitian', data.wylq_summary.sitian);
+            safeSetText('summary-zaiquan', data.wylq_summary.zaiquan);
             
-            document.getElementById('qi-step').textContent = `第 ${data.wylq_summary.qi_step} 气`;
-            document.getElementById('summary-qi-host').textContent = data.wylq_summary.qi_host;
-            document.getElementById('summary-qi-guest').textContent = data.wylq_summary.qi_guest;
+            const fortuneStepEl = document.getElementById('fortune-step');
+            if (fortuneStepEl) fortuneStepEl.textContent = `第 ${data.wylq_summary.fortune_step} 运`;
+            
+            safeSetText('summary-fortune-host', data.wylq_summary.fortune_host);
+            safeSetText('summary-fortune-guest', data.wylq_summary.fortune_guest);
+            
+            const qiStepEl = document.getElementById('qi-step');
+            if (qiStepEl) qiStepEl.textContent = `第 ${data.wylq_summary.qi_step} 气`;
+            
+            safeSetText('summary-qi-host', data.wylq_summary.qi_host);
+            safeSetText('summary-qi-guest', data.wylq_summary.qi_guest);
             
             summarySection.classList.remove('hidden');
             aiReportSection.classList.remove('hidden');
-            document.getElementById('baseScoreValue').textContent = data.base_score.toFixed(1);
+            
+            const baseScoreValueEl = document.getElementById('baseScoreValue');
+            if (baseScoreValueEl) baseScoreValueEl.textContent = data.base_score.toFixed(1);
+            
             baseScoreBadge.classList.remove('hidden');
             saveImgBtn.classList.remove('hidden');
             chartPlaceholder.classList.add('hidden');
