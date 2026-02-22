@@ -4,6 +4,7 @@ from lunar_python import Solar
 from flask import Flask, request, jsonify, render_template
 import os
 import requests
+import dashscope
 
 app = Flask(__name__, template_folder='templates', static_folder='public', static_url_path='')
 
@@ -408,7 +409,7 @@ def generate_report():
         data = request.json
         wylq_summary = data['wylq_summary']
         kline_data = data['kline_data']
-        api_key = os.environ.get("API_KEY")
+        dashscope.api_key = os.environ.get("API_KEY")
 
         kline_text = ", ".join([f"{d['age']}岁:{int(d['close'])}分" for d in kline_data])
         prompt = f"""你是一位精通《黄帝内经》和《三因司天方》的顶级中医大夫，同时也是一位深谙现代生活美学与身心管理的私人健康顾问。
@@ -435,13 +436,16 @@ def generate_report():
 3. 语言风格：专业、考究、灵动。展现尊贵感与亲和力。
 4. 直接输出纯文本。"""
 
-        response = requests.post(
-            "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": "qwen-turbo", "input": {"prompt": prompt}, "parameters": {"result_format": "message"}}
+        response = dashscope.Generation.call(
+            model="qwen-turbo",
+            prompt=prompt,
+            result_format='message'
         )
-        res_json = response.json()
-        return jsonify({"report": res_json['output']['choices'][0]['message']['content']})
+        
+        if response.status_code == 200:
+            return jsonify({"report": response.output.choices[0].message.content})
+        else:
+            return jsonify({"error": response.message}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
