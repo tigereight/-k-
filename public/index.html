@@ -64,6 +64,11 @@
             box-shadow: 0 6px 16px rgba(35, 134, 54, 0.4);
         }
 
+        .btn-ai {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
         .summary-badge {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--border-color);
@@ -77,10 +82,43 @@
             border-radius: 1rem;
         }
 
+        .report-content p {
+            margin-bottom: 1.5rem;
+            line-height: 1.8;
+            color: #d1d1d6;
+        }
+
+        .report-content h3 {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #fff;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .report-content h3::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 1.25rem;
+            background: #6366f1;
+            margin-right: 0.75rem;
+            border-radius: 2px;
+        }
+
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
+
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .animate-pulse-soft { animation: pulse-soft 2s infinite; }
     </style>
 </head>
 <body class="min-h-screen p-4 md:p-10">
@@ -88,7 +126,7 @@
         <header class="mb-12 text-center">
             <h1 class="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight serif">五运六气健康分析系统</h1>
             <div class="flex flex-col items-center">
-                <p class="text-lg text-gray-400 max-w-2xl leading-relaxed">
+                <p class="text-lg text-gray-400 max-w-3xl leading-relaxed">
                     基于传统中医运气学说的年度天人和谐健康指数<br>
                     <span class="text-sm opacity-60 font-light tracking-widest uppercase mt-1 block">Annual Harmony Index (AHI)</span>
                 </p>
@@ -133,7 +171,7 @@
                             运气概要
                         </h2>
                         
-                        <div class="grid grid-cols-2 gap-3 mb-6">
+                        <div class="grid grid-cols-2 gap-3 mb-8">
                             <div class="summary-badge">
                                 <p class="text-[10px] text-gray-500 uppercase mb-1">干支纪年</p>
                                 <p id="summary-ganzhi" class="text-sm font-bold text-blue-400 mono"></p>
@@ -152,20 +190,39 @@
                             </div>
                         </div>
 
-                        <div class="space-y-4">
-                            <div class="status-card p-4">
-                                <div class="flex items-center mb-2">
-                                    <div class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></div>
-                                    <span class="text-xs text-gray-400">当日五运格局</span>
+                        <div class="space-y-6">
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-[10px] text-gray-500 uppercase tracking-widest">当日五运格局</span>
+                                    <span id="fortune-step" class="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded"></span>
                                 </div>
-                                <p id="summary-fortune" class="text-sm text-gray-200 leading-relaxed"></p>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="status-card p-4">
+                                        <span class="text-[10px] text-gray-500 block mb-1">主运 (常)</span>
+                                        <p id="summary-fortune-host" class="text-sm font-medium text-gray-200"></p>
+                                    </div>
+                                    <div class="status-card p-4 border-l-2 border-l-emerald-500/30">
+                                        <span class="text-[10px] text-gray-500 block mb-1">客运 (变)</span>
+                                        <p id="summary-fortune-guest" class="text-sm font-medium text-gray-200"></p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="status-card p-4">
-                                <div class="flex items-center mb-2">
-                                    <div class="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>
-                                    <span class="text-xs text-gray-400">当日六气格局</span>
+
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-[10px] text-gray-500 uppercase tracking-widest">当日六气格局</span>
+                                    <span id="qi-step" class="text-[10px] bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded"></span>
                                 </div>
-                                <p id="summary-qi" class="text-sm text-gray-200 leading-relaxed"></p>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="status-card p-4">
+                                        <span class="text-[10px] text-gray-500 block mb-1">主气 (地)</span>
+                                        <p id="summary-qi-host" class="text-sm font-medium text-gray-200"></p>
+                                    </div>
+                                    <div class="status-card p-4 border-l-2 border-l-blue-500/30">
+                                        <span class="text-[10px] text-gray-500 block mb-1">客气 (天)</span>
+                                        <p id="summary-qi-guest" class="text-sm font-medium text-gray-200"></p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -173,9 +230,9 @@
             </div>
 
             <!-- Right: Chart Display -->
-            <div class="lg:col-span-8">
-                <div class="glass-card p-8 h-full flex flex-col relative overflow-hidden">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div class="lg:col-span-8 space-y-6">
+                <div class="glass-card p-8 flex flex-col relative overflow-hidden">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                         <div>
                             <h2 class="text-2xl font-bold text-white serif">AHI 天人和谐动态趋势</h2>
                             <p class="text-sm text-gray-500 mt-1">0-60岁全生命周期健康指数 K 线分析</p>
@@ -191,7 +248,7 @@
                         </div>
                     </div>
 
-                    <div id="chartContainer" class="flex-grow w-full min-h-[500px]"></div>
+                    <div id="chartContainer" class="w-full h-[500px]"></div>
                     
                     <div id="chartPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-[#141417] z-10">
                         <div class="w-24 h-24 rounded-full bg-emerald-500/5 flex items-center justify-center mb-6">
@@ -206,6 +263,31 @@
                         <div class="flex items-center"><div class="w-3 h-3 bg-[#2ca02c] rounded-sm mr-2"></div> 气场升华 (AHI 增长)</div>
                         <div class="flex items-center"><div class="w-3 h-3 bg-[#d62728] rounded-sm mr-2"></div> 气场损耗 (AHI 下降)</div>
                         <div class="flex items-center"><div class="w-6 h-0 border-t border-dashed border-gray-600 mr-2"></div> 先天基准线</div>
+                    </div>
+                </div>
+
+                <!-- AI Report Section -->
+                <div id="aiReportSection" class="hidden glass-card p-10 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-white/5 pb-8">
+                        <div>
+                            <h2 class="text-3xl font-bold text-white serif flex items-center">
+                                <svg class="w-8 h-8 mr-3 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                                专属健康报告
+                            </h2>
+                            <p class="text-gray-500 mt-2">AHI 动态趋势的深度解析</p>
+                        </div>
+                        <button id="generateReportBtn" class="btn-ai py-3 px-8 rounded-xl font-bold text-white transition-all hover:scale-105 flex items-center">
+                            <span id="btnText">生成 AI 深度报告</span>
+                            <svg id="loadingIcon" class="hidden animate-spin ml-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        </button>
+                    </div>
+
+                    <div id="reportContainer" class="hidden report-content text-gray-300">
+                        <!-- AI Content will be injected here -->
+                    </div>
+                    
+                    <div id="reportPlaceholder" class="py-20 text-center text-gray-600 italic">
+                        点击上方按钮，为您开启跨越时空的健康对话...
                     </div>
                 </div>
             </div>
@@ -223,10 +305,18 @@
         const summarySection = document.getElementById('summarySection');
         const baseScoreBadge = document.getElementById('baseScoreBadge');
         const saveImgBtn = document.getElementById('saveImgBtn');
+        const aiReportSection = document.getElementById('aiReportSection');
+        const generateReportBtn = document.getElementById('generateReportBtn');
+        const reportContainer = document.getElementById('reportContainer');
+        const reportPlaceholder = document.getElementById('reportPlaceholder');
+        const btnText = document.getElementById('btnText');
+        const loadingIcon = document.getElementById('loadingIcon');
         
         const yearSelect = document.getElementById('birthYear');
         const monthSelect = document.getElementById('birthMonth');
         const daySelect = document.getElementById('birthDay');
+
+        let currentData = null;
 
         // Initialize Selects
         const currentYear = new Date().getFullYear();
@@ -278,11 +368,67 @@
                 if (!response.ok) throw new Error('计算失败');
 
                 const data = await response.json();
+                currentData = data;
                 updateUI(data);
             } catch (error) {
                 alert(error.message);
             }
         });
+
+        generateReportBtn.addEventListener('click', async () => {
+            if (!currentData) return;
+            
+            btnText.textContent = '正在演算报告...';
+            loadingIcon.classList.remove('hidden');
+            generateReportBtn.disabled = true;
+            reportPlaceholder.classList.add('hidden');
+            reportContainer.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/generate-report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        wylq_summary: currentData.wylq_summary,
+                        kline_data: currentData.kline_data
+                    })
+                });
+
+                if (!response.ok) throw new Error('报告生成失败');
+
+                const result = await response.json();
+                renderReport(result.report);
+            } catch (error) {
+                alert(error.message);
+                reportPlaceholder.classList.remove('hidden');
+            } finally {
+                btnText.textContent = '重新生成报告';
+                loadingIcon.classList.add('hidden');
+                generateReportBtn.disabled = false;
+            }
+        });
+
+        function renderReport(text) {
+            // 清理 AI 可能输出的 Markdown 符号
+            const cleanText = text.replace(/\*\*/g, '').replace(/-\s/g, '• ');
+            
+            reportContainer.innerHTML = cleanText
+                .split('\n')
+                .filter(line => line.trim() !== '')
+                .map(line => {
+                    if (line.match(/^\d\.\s【.*】/) || line.match(/^【.*】/)) {
+                        return `<h3 class="text-xl font-bold text-white mt-10 mb-6 pb-2 border-b border-indigo-500/30 serif flex items-center">
+                            <span class="w-1.5 h-6 bg-indigo-500 mr-3 rounded-full"></span>
+                            ${line.replace(/^\d\.\s/, '')}
+                        </h3>`;
+                    }
+                    return `<p class="text-gray-300 leading-relaxed mb-4 pl-4 border-l border-white/5 hover:border-indigo-500/30 transition-colors">${line}</p>`;
+                })
+                .join('');
+            
+            reportContainer.classList.remove('hidden');
+            reportContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
 
         saveImgBtn.addEventListener('click', () => {
             if (myChart) {
@@ -292,7 +438,7 @@
                     backgroundColor: '#141417'
                 });
                 const link = document.createElement('a');
-                link.download = 'AHI_Health_Chart.png';
+                link.download = `AHI_Health_Report_${yearSelect.value}${monthSelect.value}${daySelect.value}.png`;
                 link.href = url;
                 link.click();
             }
@@ -303,14 +449,27 @@
             document.getElementById('summary-suiyun').textContent = data.wylq_summary.suiyun;
             document.getElementById('summary-sitian').textContent = data.wylq_summary.sitian;
             document.getElementById('summary-zaiquan').textContent = data.wylq_summary.zaiquan;
-            document.getElementById('summary-fortune').textContent = data.wylq_summary.current_fortune;
-            document.getElementById('summary-qi').textContent = data.wylq_summary.current_qi;
+            
+            document.getElementById('fortune-step').textContent = `第 ${data.wylq_summary.fortune_step} 运`;
+            document.getElementById('summary-fortune-host').textContent = data.wylq_summary.fortune_host;
+            document.getElementById('summary-fortune-guest').textContent = data.wylq_summary.fortune_guest;
+            
+            document.getElementById('qi-step').textContent = `第 ${data.wylq_summary.qi_step} 气`;
+            document.getElementById('summary-qi-host').textContent = data.wylq_summary.qi_host;
+            document.getElementById('summary-qi-guest').textContent = data.wylq_summary.qi_guest;
             
             summarySection.classList.remove('hidden');
+            aiReportSection.classList.remove('hidden');
             document.getElementById('baseScoreValue').textContent = data.base_score.toFixed(1);
             baseScoreBadge.classList.remove('hidden');
             saveImgBtn.classList.remove('hidden');
             chartPlaceholder.classList.add('hidden');
+            
+            // Reset report
+            reportContainer.classList.add('hidden');
+            reportPlaceholder.classList.remove('hidden');
+            btnText.textContent = '生成 AI 深度报告';
+
             renderChart(data.kline_data, data.base_score);
         }
 
