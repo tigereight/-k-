@@ -3,6 +3,7 @@ import { Solar, Lunar } from "lunar-javascript";
 import path from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
+import "dotenv/config";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -566,7 +567,11 @@ const SANYIN_KNOWLEDGE = `
 app.post("/api/generate-report", async (req, res) => {
   try {
     const { wylq_summary, kline_data } = req.body;
-    const apiKey = process.env.API_KEY;
+    const apiKey = process.env.DASHSCOPE_API_KEY || process.env.API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({ error: "服务器未配置 API Key (DASHSCOPE_API_KEY)" });
+    }
 
     const klineText = kline_data.map((d: any) => `${d.age}岁:${Math.round(d.close)}分`).join(", ");
     
@@ -630,7 +635,7 @@ ${klineText}
   }
 });
 
-const PORT = 3000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+const PORT = process.env.PORT || 3000;
+app.listen(Number(PORT), "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
 });
