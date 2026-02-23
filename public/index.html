@@ -59,14 +59,16 @@
             transition: all 0.2s ease;
         }
 
-        .btn-generate:hover {
+        .btn-generate:hover:not(:disabled) {
             transform: translateY(-1px);
             box-shadow: 0 6px 16px rgba(35, 134, 54, 0.4);
         }
-
-        .btn-ai {
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        
+        .btn-generate:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+            box-shadow: none;
         }
 
         .summary-badge {
@@ -82,51 +84,18 @@
             border-radius: 1rem;
         }
 
-        .report-content p {
-            margin-bottom: 1.5rem;
-            line-height: 1.8;
-            color: #d1d1d6;
-        }
-
-        .report-content h3 {
-            font-family: 'Noto Serif SC', serif;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #fff;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-        }
-
-        .report-content h3::before {
-            content: '';
-            display: inline-block;
-            width: 4px;
-            height: 1.25rem;
-            background: #6366f1;
-            margin-right: 0.75rem;
-            border-radius: 2px;
-        }
-
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
-
-        @keyframes pulse-soft {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        .animate-pulse-soft { animation: pulse-soft 2s infinite; }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-10">
+<body class="min-h-screen p-4 md:p-10 overflow-y-auto">
     <div class="max-w-7xl mx-auto">
         <header class="mb-12 text-center">
             <h1 class="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight serif">五运六气健康分析系统</h1>
             <div class="flex flex-col items-center">
-                <p class="text-lg text-gray-400 max-w-3xl leading-relaxed">
+                <p class="text-lg text-gray-400 max-w-2xl leading-relaxed">
                     基于传统中医运气学说的年度天人和谐健康指数<br>
                     <span class="text-sm opacity-60 font-light tracking-widest uppercase mt-1 block">Annual Harmony Index (AHI)</span>
                 </p>
@@ -135,7 +104,6 @@
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <!-- Left: Controls & Summary -->
             <div class="lg:col-span-4 space-y-6">
                 <div class="glass-card p-8">
                     <h2 class="text-xl font-semibold text-white mb-8 flex items-center serif">
@@ -157,7 +125,7 @@
                                 <select id="birthDay" class="w-full p-3 input-select rounded-xl text-sm"></select>
                             </div>
                         </div>
-                        <button type="submit" class="w-full py-4 px-6 rounded-xl font-bold btn-generate text-white flex items-center justify-center space-x-2">
+                        <button type="submit" id="submitBtn" class="w-full py-4 px-6 rounded-xl font-bold btn-generate text-white flex items-center justify-center space-x-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                             <span>生成健康 K 线图</span>
                         </button>
@@ -171,7 +139,7 @@
                             运气概要
                         </h2>
                         
-                        <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="grid grid-cols-2 gap-3 mb-6">
                             <div class="summary-badge">
                                 <p class="text-[10px] text-gray-500 uppercase mb-1">干支纪年</p>
                                 <p id="summary-ganzhi" class="text-sm font-bold text-blue-400 mono"></p>
@@ -188,23 +156,31 @@
                                 <p class="text-[10px] text-gray-500 uppercase mb-1">在泉</p>
                                 <p id="summary-zaiquan" class="text-sm font-bold text-purple-400"></p>
                             </div>
-                            <div class="summary-badge col-span-2">
-                                <p class="text-[10px] text-gray-500 uppercase mb-1">当日五运格局</p>
-                                <p id="summary-fortune-detail" class="text-sm font-bold text-emerald-500"></p>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="status-card p-4">
+                                <div class="flex items-center mb-2">
+                                    <div class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></div>
+                                    <span class="text-xs text-gray-400">当日五运格局</span>
+                                </div>
+                                <p id="summary-fortune" class="text-sm text-gray-200 leading-relaxed"></p>
                             </div>
-                            <div class="summary-badge col-span-2">
-                                <p class="text-[10px] text-gray-500 uppercase mb-1">当日六气格局</p>
-                                <p id="summary-qi-detail" class="text-sm font-bold text-blue-500"></p>
+                            <div class="status-card p-4">
+                                <div class="flex items-center mb-2">
+                                    <div class="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>
+                                    <span class="text-xs text-gray-400">当日六气格局</span>
+                                </div>
+                                <p id="summary-qi" class="text-sm text-gray-200 leading-relaxed"></p>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right: Chart Display -->
-            <div class="lg:col-span-8 space-y-6">
-                <div class="glass-card p-8 flex flex-col relative overflow-hidden">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <div class="lg:col-span-8 flex flex-col space-y-6">
+                <div class="glass-card p-8 relative overflow-hidden flex-shrink-0">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                         <div>
                             <h2 class="text-2xl font-bold text-white serif">AHI 天人和谐动态趋势</h2>
                             <p class="text-sm text-gray-500 mt-1">0-60岁全生命周期健康指数 K 线分析</p>
@@ -214,16 +190,13 @@
                                 <span class="text-gray-500">先天基准:</span>
                                 <span id="baseScoreValue" class="text-emerald-400 font-bold ml-1 mono">--</span>
                             </div>
-                            <button id="copyDataBtn" class="hidden p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors" title="复制 K 线数据">
-                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-                            </button>
                             <button id="saveImgBtn" class="hidden p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors" title="保存为图片">
                                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                             </button>
                         </div>
                     </div>
 
-                    <div id="chartContainer" class="w-full h-[500px]"></div>
+                    <div id="chartContainer" class="w-full min-h-[450px]"></div>
                     
                     <div id="chartPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-[#141417] z-10">
                         <div class="w-24 h-24 rounded-full bg-emerald-500/5 flex items-center justify-center mb-6">
@@ -233,85 +206,52 @@
                         <p class="text-gray-600 text-sm mt-2">系统将为您演算六十载运气碰撞</p>
                     </div>
 
-                    <!-- Legend -->
-                    <div class="mt-6 flex items-center justify-center space-x-8 text-[10px] text-gray-500 uppercase tracking-widest">
+                    <div id="chartLegend" class="hidden mt-6 flex items-center justify-center space-x-8 text-[10px] text-gray-500 uppercase tracking-widest">
                         <div class="flex items-center"><div class="w-3 h-3 bg-[#2ca02c] rounded-sm mr-2"></div> 气场升华 (AHI 增长)</div>
                         <div class="flex items-center"><div class="w-3 h-3 bg-[#d62728] rounded-sm mr-2"></div> 气场损耗 (AHI 下降)</div>
                         <div class="flex items-center"><div class="w-6 h-0 border-t border-dashed border-gray-600 mr-2"></div> 先天基准线</div>
                     </div>
                 </div>
 
-                <!-- AI Report Section -->
-                <div id="aiReportSection" class="hidden glass-card p-10 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-white/5 pb-8">
-                        <div>
-                            <h2 class="text-3xl font-bold text-white serif flex items-center">
-                                <svg class="w-8 h-8 mr-3 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
-                                专属健康报告
-                            </h2>
-                            <p class="text-gray-500 mt-2">AHI 动态趋势的深度解析</p>
-                        </div>
-                        <div class="flex items-center space-x-4">
-                            <button id="copyReportBtn" class="hidden py-3 px-6 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all flex items-center">
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
-                                复制报告
-                            </button>
-                            <button id="generateReportBtn" class="btn-ai py-3 px-8 rounded-xl font-bold text-white transition-all hover:scale-105 flex items-center">
-                                <span id="btnText">生成 AI 深度报告</span>
-                                <svg id="loadingIcon" class="hidden animate-spin ml-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="reportContainer" class="hidden report-content text-gray-300">
-                        <!-- AI Content will be injected here -->
-                    </div>
-
-                    <div id="loadingReport" class="hidden py-20 text-center space-y-6">
-                        <div class="relative inline-block">
-                            <div class="w-16 h-16 border-4 border-indigo-500/20 rounded-full"></div>
-                            <div class="absolute inset-0 w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                        </div>
-                        <div class="space-y-2">
-                            <p class="text-indigo-400 font-medium text-lg animate-pulse">正在为您撰写专属报告，请耐心等待...</p>
-                            <p class="text-gray-500 text-sm">系统正在深度演算流年运气对您能量场的影响</p>
-                        </div>
-                    </div>
+                <div id="reportSection" class="hidden glass-card p-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <h2 class="text-xl font-semibold text-white mb-6 flex items-center serif">
+                        <span class="w-8 h-8 rounded-full bg-purple-500/10 text-purple-500 flex items-center justify-center mr-3 text-sm">03</span>
+                        专属健康报告
+                    </h2>
                     
-                    <div id="reportPlaceholder" class="py-20 text-center text-gray-600 italic">
-                        点击上方按钮，为您开启跨越时空的健康对话...
+                    <div id="reportLoading" class="flex flex-col items-center justify-center py-12">
+                        <svg class="animate-spin h-10 w-10 text-purple-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <p class="text-gray-300 font-medium tracking-wide">正在构建 AHI 动态健康模型...</p>
+                        <p class="text-gray-500 text-sm mt-2">正在处理流年碰撞与生命周期数据，专属深度报告生成中</p>
                     </div>
+
+                    <div id="reportContent" class="hidden text-gray-300 leading-relaxed text-sm md:text-base"></div>
                 </div>
             </div>
         </div>
 
-        <footer class="mt-16 text-center">
+        <footer class="mt-16 text-center pb-8">
             <p class="text-gray-600 text-xs tracking-widest uppercase">© 2026 五运六气健康分析系统 · 仅供学术研究参考</p>
         </footer>
     </div>
 
     <script>
         const form = document.getElementById('calcForm');
+        const submitBtn = document.getElementById('submitBtn');
         const chartContainer = document.getElementById('chartContainer');
         const chartPlaceholder = document.getElementById('chartPlaceholder');
+        const chartLegend = document.getElementById('chartLegend');
         const summarySection = document.getElementById('summarySection');
         const baseScoreBadge = document.getElementById('baseScoreBadge');
         const saveImgBtn = document.getElementById('saveImgBtn');
-        const copyDataBtn = document.getElementById('copyDataBtn');
-        const aiReportSection = document.getElementById('aiReportSection');
-        const generateReportBtn = document.getElementById('generateReportBtn');
-        const reportContainer = document.getElementById('reportContainer');
-        const reportPlaceholder = document.getElementById('reportPlaceholder');
-        const loadingReport = document.getElementById('loadingReport');
-        const copyReportBtn = document.getElementById('copyReportBtn');
-        const btnText = document.getElementById('btnText');
-        const loadingIcon = document.getElementById('loadingIcon');
+        
+        const reportSection = document.getElementById('reportSection');
+        const reportLoading = document.getElementById('reportLoading');
+        const reportContent = document.getElementById('reportContent');
         
         const yearSelect = document.getElementById('birthYear');
         const monthSelect = document.getElementById('birthMonth');
         const daySelect = document.getElementById('birthDay');
-
-        let currentData = null;
 
         // Initialize Selects
         const currentYear = new Date().getFullYear();
@@ -353,117 +293,66 @@
             const month = parseInt(monthSelect.value);
             const day = parseInt(daySelect.value);
 
-            console.log('Calculating for:', { year, month, day });
+            // UI 状态切换：按钮 Loading
+            const originalBtnHTML = submitBtn.innerHTML;
+            submitBtn.innerHTML = `<svg class="animate-spin w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> <span>推演数据中...</span>`;
+            submitBtn.disabled = true;
+
+            // 隐藏上一次的报告
+            reportSection.classList.add('hidden');
+            reportContent.classList.add('hidden');
 
             try {
-                const response = await fetch('/api/calculate', {
+                // 第一步：请求核心计算数据
+                const calcResponse = await fetch('/api/calculate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ year, month, day })
                 });
 
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.error || '计算失败');
+                const calcData = await calcResponse.json();
+                if (calcData.error) throw new Error('计算失败: ' + calcData.error);
+
+                // 更新左侧面板与图表
+                updateUI(calcData);
+                
+                // 平滑滚动让用户看到图表
+                if(window.innerWidth < 1024) {
+                    summarySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
 
-                const data = await response.json();
-                console.log('Calculation result:', data);
-                currentData = data;
-                updateUI(data);
-            } catch (error) {
-                console.error('Calculation error:', error);
-                alert('计算出错: ' + error.message);
-            }
-        });
+                // 第二步：展示报告 Loading 状态，开始请求 AI 报告
+                reportSection.classList.remove('hidden');
+                reportLoading.classList.remove('hidden');
 
-        generateReportBtn.addEventListener('click', async () => {
-            if (!currentData) return;
-            
-            btnText.textContent = '正在演算报告...';
-            loadingIcon.classList.remove('hidden');
-            generateReportBtn.disabled = true;
-            reportPlaceholder.classList.add('hidden');
-            reportContainer.classList.add('hidden');
-            loadingReport.classList.remove('hidden');
-
-            try {
-                const response = await fetch('/api/generate-report', {
+                const reportResponse = await fetch('/api/generate-report', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        wylq_summary: currentData.wylq_summary,
-                        kline_data: currentData.kline_data
+                    body: JSON.stringify({ 
+                        wylq_summary: calcData.wylq_summary,
+                        kline_data: calcData.kline_data 
                     })
                 });
 
-                const result = await response.json();
+                const reportData = await reportResponse.json();
                 
-                if (!response.ok) {
-                    throw new Error(result.error || '报告生成失败');
+                // 渲染报告结果
+                reportLoading.classList.add('hidden');
+                reportContent.classList.remove('hidden');
+                
+                if (reportData.error) {
+                    reportContent.innerHTML = `<span class="text-red-400 font-bold">⚠️ 报告生成异常：</span><br>${reportData.error}`;
+                } else {
+                    renderReport(reportData.report);
                 }
 
-                renderReport(result.report);
-                copyReportBtn.classList.remove('hidden');
             } catch (error) {
-                console.error('Report error:', error);
-                reportContainer.innerHTML = `<div class="p-6 border border-red-500/30 bg-red-500/10 rounded-xl text-red-400">
-                    <h3 class="text-red-400 font-bold mb-2 flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        报告生成异常
-                    </h3>
-                    <p class="text-sm opacity-80">错误详情: ${error.message}</p>
-                    <p class="text-xs mt-4 opacity-60">请检查 API Key 配置或稍后重试。</p>
-                </div>`;
-                reportContainer.classList.remove('hidden');
+                alert("⚠️ 发生错误: " + error.message);
             } finally {
-                btnText.textContent = '重新生成报告';
-                loadingIcon.classList.add('hidden');
-                loadingReport.classList.add('hidden');
-                generateReportBtn.disabled = false;
+                // 恢复按钮状态
+                submitBtn.innerHTML = originalBtnHTML;
+                submitBtn.disabled = false;
             }
-        });
-
-        function renderReport(text) {
-            // 清理 AI 可能输出的 Markdown 符号
-            const cleanText = text.replace(/\*\*/g, '').replace(/-\s/g, '• ');
-            
-            reportContainer.innerHTML = cleanText
-                .split('\n')
-                .filter(line => line.trim() !== '')
-                .map(line => {
-                    if (line.match(/^\d\.\s【.*】/) || line.match(/^【.*】/)) {
-                        return `<h3 class="text-xl font-bold text-white mt-10 mb-6 pb-2 border-b border-indigo-500/30 serif flex items-center">
-                            <span class="w-1.5 h-6 bg-indigo-500 mr-3 rounded-full"></span>
-                            ${line.replace(/^\d\.\s/, '')}
-                        </h3>`;
-                    }
-                    return `<p class="text-gray-300 leading-relaxed mb-4 pl-4 border-l border-white/5 hover:border-indigo-500/30 transition-colors">${line}</p>`;
-                })
-                .join('');
-            
-            reportContainer.classList.remove('hidden');
-            reportContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        copyReportBtn.addEventListener('click', () => {
-            const text = reportContainer.innerText;
-            navigator.clipboard.writeText(text).then(() => {
-                const originalText = copyReportBtn.innerHTML;
-                copyReportBtn.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>已复制';
-                setTimeout(() => {
-                    copyReportBtn.innerHTML = originalText;
-                }, 2000);
-            });
-        });
-
-        copyDataBtn.addEventListener('click', () => {
-            if (!currentData) return;
-            const text = currentData.kline_data.map(d => `${d.age}岁: ${d.close}分`).join('\n');
-            const header = `AHI 健康 K 线数据报告\n出生日期: ${yearSelect.value}-${monthSelect.value}-${daySelect.value}\n先天基准: ${currentData.base_score.toFixed(2)}\n\n`;
-            navigator.clipboard.writeText(header + text).then(() => {
-                alert('K 线数据已复制到剪贴板');
-            });
         });
 
         saveImgBtn.addEventListener('click', () => {
@@ -474,48 +363,75 @@
                     backgroundColor: '#141417'
                 });
                 const link = document.createElement('a');
-                link.download = `AHI_Health_Report_${yearSelect.value}${monthSelect.value}${daySelect.value}.png`;
+                link.download = 'AHI_Health_Chart.png';
                 link.href = url;
                 link.click();
             }
         });
 
-        function updateUI(data) {
-            console.log('Updating UI with data:', data);
+        function renderReport(text) {
+            // 财务/专业风格渲染逻辑 - 增强金融风
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            let html = '<div class="space-y-10 font-sans max-w-3xl mx-auto">';
             
-            const safeSetText = (id, text) => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.textContent = text || '--';
-                } else {
-                    console.warn(`Element with id "${id}" not found`);
-                }
-            };
+            // 顶部装饰线
+            html += '<div class="h-1 w-20 bg-purple-500 mb-12"></div>';
 
-            safeSetText('summary-ganzhi', data.wylq_summary.ganzhi);
-            safeSetText('summary-suiyun', data.wylq_summary.suiyun);
-            safeSetText('summary-sitian', data.wylq_summary.sitian);
-            safeSetText('summary-zaiquan', data.wylq_summary.zaiquan);
+            lines.forEach(line => {
+                // 识别标题 (例如: 【...】 或 1. 【...】)
+                const titleMatch = line.match(/^(?:\d+\.\s*)?【(.*?)】/);
+                if (titleMatch) {
+                    const title = titleMatch[1];
+                    html += `
+                        <div class="mt-12 first:mt-0">
+                            <div class="flex items-baseline mb-6 border-b border-white/10 pb-2">
+                                <span class="text-[10px] font-mono text-purple-500/50 mr-4 tracking-tighter uppercase">Section //</span>
+                                <h3 class="text-lg font-bold text-white tracking-[0.2em] serif uppercase">${title}</h3>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // 普通段落 - 增加首字下沉或特定的边框装饰
+                    html += `
+                        <div class="relative group">
+                            <div class="absolute -left-4 top-0 bottom-0 w-px bg-white/5 group-hover:bg-purple-500/30 transition-colors duration-500"></div>
+                            <p class="text-gray-400 leading-[1.8] text-justify tracking-wide mb-6">
+                                ${line}
+                            </p>
+                        </div>
+                    `;
+                }
+            });
             
-            safeSetText('summary-fortune-detail', data.wylq_summary.daily_fortune);
-            safeSetText('summary-qi-detail', data.wylq_summary.daily_qi);
+            // 底部免责声明风格
+            html += `
+                <div class="mt-20 pt-8 border-t border-white/5">
+                    <p class="text-[10px] text-gray-600 uppercase tracking-[0.3em] text-center">
+                        End of Confidential Health Insight Report
+                    </p>
+                </div>
+            `;
+            
+            html += '</div>';
+            reportContent.innerHTML = html;
+        }
+
+        function updateUI(data) {
+            // 绑定数据到面板，名称与 app.py 完全匹配
+            document.getElementById('summary-ganzhi').textContent = data.wylq_summary.ganzhi;
+            document.getElementById('summary-suiyun').textContent = data.wylq_summary.suiyun;
+            document.getElementById('summary-sitian').textContent = data.wylq_summary.sitian;
+            document.getElementById('summary-zaiquan').textContent = data.wylq_summary.zaiquan;
+            document.getElementById('summary-fortune').textContent = data.wylq_summary.daily_fortune;
+            document.getElementById('summary-qi').textContent = data.wylq_summary.daily_qi;
             
             summarySection.classList.remove('hidden');
-            aiReportSection.classList.remove('hidden');
-            
-            const baseScoreValueEl = document.getElementById('baseScoreValue');
-            if (baseScoreValueEl) baseScoreValueEl.textContent = data.base_score.toFixed(1);
-            
+            document.getElementById('baseScoreValue').textContent = data.base_score.toFixed(1);
             baseScoreBadge.classList.remove('hidden');
             saveImgBtn.classList.remove('hidden');
-            copyDataBtn.classList.remove('hidden');
             chartPlaceholder.classList.add('hidden');
+            chartLegend.classList.remove('hidden');
             
-            // Reset report
-            reportContainer.classList.add('hidden');
-            reportPlaceholder.classList.remove('hidden');
-            btnText.textContent = '生成 AI 深度报告';
-
             renderChart(data.kline_data, data.base_score);
         }
 

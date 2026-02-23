@@ -364,19 +364,19 @@ class AHIEngine {
     const hEl = this.birthHostQi.element;
     const gEl = this.birthGuestQi.element;
 
-    // 匹配用户提供的“完美版”加权逻辑
+    // 匹配用户最新的加权逻辑要求
     if (ElementGeneration[gEl] === hEl || ElementGeneration[hEl] === gEl || gEl === hEl) {
-      score += 20;
+      score += 10;
     } else if (ElementOvercomes[hEl] === gEl) {
-      score -= 20;
+      score -= 15;
     } else if (ElementOvercomes[gEl] === hEl) {
       score -= 10;
     }
 
     if (this.birthGuestQi.display_name === QiType.MILD_YIN_FIRE.display_name && this.birthHostQi.display_name === QiType.WEAK_YANG_FIRE.display_name) {
-      score += 15;
+      score += 8;
     } else if (this.birthGuestQi.display_name === QiType.WEAK_YANG_FIRE.display_name && this.birthHostQi.display_name === QiType.MILD_YIN_FIRE.display_name) {
-      score -= 15;
+      score -= 8;
     }
 
     return score;
