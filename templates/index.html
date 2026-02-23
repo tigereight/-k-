@@ -59,9 +59,16 @@
             transition: all 0.2s ease;
         }
 
-        .btn-generate:hover {
+        .btn-generate:hover:not(:disabled) {
             transform: translateY(-1px);
             box-shadow: 0 6px 16px rgba(35, 134, 54, 0.4);
+        }
+        
+        .btn-generate:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+            box-shadow: none;
         }
 
         .summary-badge {
@@ -83,7 +90,7 @@
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-10">
+<body class="min-h-screen p-4 md:p-10 overflow-y-auto">
     <div class="max-w-7xl mx-auto">
         <header class="mb-12 text-center">
             <h1 class="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight serif">五运六气健康分析系统</h1>
@@ -97,7 +104,6 @@
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <!-- Left: Controls & Summary -->
             <div class="lg:col-span-4 space-y-6">
                 <div class="glass-card p-8">
                     <h2 class="text-xl font-semibold text-white mb-8 flex items-center serif">
@@ -119,7 +125,7 @@
                                 <select id="birthDay" class="w-full p-3 input-select rounded-xl text-sm"></select>
                             </div>
                         </div>
-                        <button type="submit" class="w-full py-4 px-6 rounded-xl font-bold btn-generate text-white flex items-center justify-center space-x-2">
+                        <button type="submit" id="submitBtn" class="w-full py-4 px-6 rounded-xl font-bold btn-generate text-white flex items-center justify-center space-x-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                             <span>生成健康 K 线图</span>
                         </button>
@@ -172,9 +178,8 @@
                 </div>
             </div>
 
-            <!-- Right: Chart Display -->
-            <div class="lg:col-span-8">
-                <div class="glass-card p-8 h-full flex flex-col relative overflow-hidden">
+            <div class="lg:col-span-8 flex flex-col space-y-6">
+                <div class="glass-card p-8 relative overflow-hidden flex-shrink-0">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                         <div>
                             <h2 class="text-2xl font-bold text-white serif">AHI 天人和谐动态趋势</h2>
@@ -191,7 +196,7 @@
                         </div>
                     </div>
 
-                    <div id="chartContainer" class="flex-grow w-full min-h-[500px]"></div>
+                    <div id="chartContainer" class="w-full min-h-[450px]"></div>
                     
                     <div id="chartPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-[#141417] z-10">
                         <div class="w-24 h-24 rounded-full bg-emerald-500/5 flex items-center justify-center mb-6">
@@ -201,28 +206,48 @@
                         <p class="text-gray-600 text-sm mt-2">系统将为您演算六十载运气碰撞</p>
                     </div>
 
-                    <!-- Legend -->
-                    <div class="mt-6 flex items-center justify-center space-x-8 text-[10px] text-gray-500 uppercase tracking-widest">
+                    <div id="chartLegend" class="hidden mt-6 flex items-center justify-center space-x-8 text-[10px] text-gray-500 uppercase tracking-widest">
                         <div class="flex items-center"><div class="w-3 h-3 bg-[#2ca02c] rounded-sm mr-2"></div> 气场升华 (AHI 增长)</div>
                         <div class="flex items-center"><div class="w-3 h-3 bg-[#d62728] rounded-sm mr-2"></div> 气场损耗 (AHI 下降)</div>
                         <div class="flex items-center"><div class="w-6 h-0 border-t border-dashed border-gray-600 mr-2"></div> 先天基准线</div>
                     </div>
                 </div>
+
+                <div id="reportSection" class="hidden glass-card p-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <h2 class="text-xl font-semibold text-white mb-6 flex items-center serif">
+                        <span class="w-8 h-8 rounded-full bg-purple-500/10 text-purple-500 flex items-center justify-center mr-3 text-sm">03</span>
+                        全生命周期健康洞察报告
+                    </h2>
+                    
+                    <div id="reportLoading" class="flex flex-col items-center justify-center py-12">
+                        <svg class="animate-spin h-10 w-10 text-purple-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <p class="text-gray-300 font-medium tracking-wide">正在唤醒千问 AI 老中医...</p>
+                        <p class="text-gray-500 text-sm mt-2">结合《三因司天方》推演您的定制养生锦囊，约需 15-20 秒</p>
+                    </div>
+
+                    <div id="reportContent" class="hidden text-gray-300 leading-relaxed whitespace-pre-wrap text-sm md:text-base"></div>
+                </div>
             </div>
         </div>
 
-        <footer class="mt-16 text-center">
+        <footer class="mt-16 text-center pb-8">
             <p class="text-gray-600 text-xs tracking-widest uppercase">© 2026 五运六气健康分析系统 · 仅供学术研究参考</p>
         </footer>
     </div>
 
     <script>
         const form = document.getElementById('calcForm');
+        const submitBtn = document.getElementById('submitBtn');
         const chartContainer = document.getElementById('chartContainer');
         const chartPlaceholder = document.getElementById('chartPlaceholder');
+        const chartLegend = document.getElementById('chartLegend');
         const summarySection = document.getElementById('summarySection');
         const baseScoreBadge = document.getElementById('baseScoreBadge');
         const saveImgBtn = document.getElementById('saveImgBtn');
+        
+        const reportSection = document.getElementById('reportSection');
+        const reportLoading = document.getElementById('reportLoading');
+        const reportContent = document.getElementById('reportContent');
         
         const yearSelect = document.getElementById('birthYear');
         const monthSelect = document.getElementById('birthMonth');
@@ -268,19 +293,65 @@
             const month = parseInt(monthSelect.value);
             const day = parseInt(daySelect.value);
 
+            // UI 状态切换：按钮 Loading
+            const originalBtnHTML = submitBtn.innerHTML;
+            submitBtn.innerHTML = `<svg class="animate-spin w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> <span>推演数据中...</span>`;
+            submitBtn.disabled = true;
+
+            // 隐藏上一次的报告
+            reportSection.classList.add('hidden');
+            reportContent.classList.add('hidden');
+
             try {
-                const response = await fetch('/api/calculate', {
+                // 第一步：请求核心计算数据
+                const calcResponse = await fetch('/api/calculate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ year, month, day })
                 });
 
-                if (!response.ok) throw new Error('计算失败');
+                const calcData = await calcResponse.json();
+                if (calcData.error) throw new Error('计算失败: ' + calcData.error);
 
-                const data = await response.json();
-                updateUI(data);
+                // 更新左侧面板与图表
+                updateUI(calcData);
+                
+                // 平滑滚动让用户看到图表
+                if(window.innerWidth < 1024) {
+                    summarySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+
+                // 第二步：展示报告 Loading 状态，开始请求 AI 报告
+                reportSection.classList.remove('hidden');
+                reportLoading.classList.remove('hidden');
+
+                const reportResponse = await fetch('/api/generate-report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        wylq_summary: calcData.wylq_summary,
+                        kline_data: calcData.kline_data 
+                    })
+                });
+
+                const reportData = await reportResponse.json();
+                
+                // 渲染报告结果
+                reportLoading.classList.add('hidden');
+                reportContent.classList.remove('hidden');
+                
+                if (reportData.error) {
+                    reportContent.innerHTML = `<span class="text-red-400 font-bold">⚠️ 报告生成异常：</span><br>${reportData.error}`;
+                } else {
+                    reportContent.innerText = reportData.report;
+                }
+
             } catch (error) {
-                alert(error.message);
+                alert("⚠️ 发生错误: " + error.message);
+            } finally {
+                // 恢复按钮状态
+                submitBtn.innerHTML = originalBtnHTML;
+                submitBtn.disabled = false;
             }
         });
 
@@ -299,18 +370,21 @@
         });
 
         function updateUI(data) {
+            // 绑定数据到面板，名称与 app.py 完全匹配
             document.getElementById('summary-ganzhi').textContent = data.wylq_summary.ganzhi;
             document.getElementById('summary-suiyun').textContent = data.wylq_summary.suiyun;
             document.getElementById('summary-sitian').textContent = data.wylq_summary.sitian;
             document.getElementById('summary-zaiquan').textContent = data.wylq_summary.zaiquan;
-            document.getElementById('summary-fortune').textContent = data.wylq_summary.current_fortune;
-            document.getElementById('summary-qi').textContent = data.wylq_summary.current_qi;
+            document.getElementById('summary-fortune').textContent = data.wylq_summary.daily_fortune;
+            document.getElementById('summary-qi').textContent = data.wylq_summary.daily_qi;
             
             summarySection.classList.remove('hidden');
             document.getElementById('baseScoreValue').textContent = data.base_score.toFixed(1);
             baseScoreBadge.classList.remove('hidden');
             saveImgBtn.classList.remove('hidden');
             chartPlaceholder.classList.add('hidden');
+            chartLegend.classList.remove('hidden');
+            
             renderChart(data.kline_data, data.base_score);
         }
 
