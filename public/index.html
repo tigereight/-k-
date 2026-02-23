@@ -84,7 +84,6 @@
             border-radius: 1rem;
         }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
@@ -225,7 +224,7 @@
                         <p class="text-gray-500 text-sm mt-2">正在处理流年碰撞与生命周期数据，专属深度报告生成中</p>
                     </div>
 
-                    <div id="reportContent" class="hidden text-gray-300 leading-relaxed whitespace-pre-wrap text-sm md:text-base"></div>
+                    <div id="reportContent" class="hidden text-gray-300 leading-relaxed text-sm md:text-base"></div>
                 </div>
             </div>
         </div>
@@ -236,6 +235,7 @@
     </div>
 
     <script>
+        // 定义各种元素的指针
         const form = document.getElementById('calcForm');
         const submitBtn = document.getElementById('submitBtn');
         const chartContainer = document.getElementById('chartContainer');
@@ -247,13 +247,13 @@
         
         const reportSection = document.getElementById('reportSection');
         const reportLoading = document.getElementById('reportLoading');
-        const reportContent = document.getElementById('reportContent');
+        const reportContent = document.getElementById('reportContent'); // 关键：找回画板
         
         const yearSelect = document.getElementById('birthYear');
         const monthSelect = document.getElementById('birthMonth');
         const daySelect = document.getElementById('birthDay');
 
-        // Initialize Selects
+        // 初始化日期选择器
         const currentYear = new Date().getFullYear();
         for (let y = currentYear; y >= 1900; y--) {
             const opt = document.createElement('option');
@@ -287,13 +287,14 @@
 
         let myChart = null;
 
+        // 表单提交事件
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const year = parseInt(yearSelect.value);
             const month = parseInt(monthSelect.value);
             const day = parseInt(daySelect.value);
 
-            // UI 状态切换：按钮 Loading
+            // 按钮变灰，显示加载
             const originalBtnHTML = submitBtn.innerHTML;
             submitBtn.innerHTML = `<svg class="animate-spin w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> <span>推演数据中...</span>`;
             submitBtn.disabled = true;
@@ -316,12 +317,12 @@
                 // 更新左侧面板与图表
                 updateUI(calcData);
                 
-                // 平滑滚动让用户看到图表
+                // 移动端平滑滚动
                 if(window.innerWidth < 1024) {
                     summarySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
 
-                // 第二步：展示报告 Loading 状态，开始请求 AI 报告
+                // 第二步：展示报告 Loading，请求 AI 报告
                 reportSection.classList.remove('hidden');
                 reportLoading.classList.remove('hidden');
 
@@ -343,25 +344,66 @@
                 if (reportData.error) {
                     reportContent.innerHTML = `<span class="text-red-400 font-bold">⚠️ 报告生成异常：</span><br>${reportData.error}`;
                 } else {
-                    reportContent.innerText = reportData.report;
+                    renderReport(reportData.report); // 调用渲染函数
                 }
 
             } catch (error) {
                 alert("⚠️ 发生错误: " + error.message);
             } finally {
-                // 恢复按钮状态
                 submitBtn.innerHTML = originalBtnHTML;
                 submitBtn.disabled = false;
             }
         });
 
+        // 渲染极具高级感的金融排版报告
+        function renderReport(text) {
+            // 切割换行符
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            let html = '<div class="space-y-10 font-sans max-w-3xl mx-auto">';
+            
+            html += '<div class="h-1 w-20 bg-purple-500 mb-12"></div>';
+
+            lines.forEach(line => {
+                // 拦截 【标题】
+                const titleMatch = line.match(/^(?:\d+\.\s*)?【(.*?)】/);
+                if (titleMatch) {
+                    const title = titleMatch[1];
+                    html += `
+                        <div class="mt-12 first:mt-0">
+                            <div class="flex items-baseline mb-6 border-b border-white/10 pb-2">
+                                <span class="text-[10px] font-mono text-purple-500/50 mr-4 tracking-tighter uppercase">Section //</span>
+                                <h3 class="text-lg font-bold text-white tracking-[0.2em] serif uppercase">${title}</h3>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // 普通段落带侧边紫光交互
+                    html += `
+                        <div class="relative group">
+                            <div class="absolute -left-4 top-0 bottom-0 w-px bg-white/5 group-hover:bg-purple-500/30 transition-colors duration-500"></div>
+                            <p class="text-gray-400 leading-[1.8] text-justify tracking-wide mb-6">
+                                ${line}
+                            </p>
+                        </div>
+                    `;
+                }
+            });
+            
+            html += `
+                <div class="mt-20 pt-8 border-t border-white/5">
+                    <p class="text-[10px] text-gray-600 uppercase tracking-[0.3em] text-center">
+                        End of Confidential Health Insight Report
+                    </p>
+                </div>
+            </div>`;
+            
+            reportContent.innerHTML = html;
+        }
+
+        // 保存图片
         saveImgBtn.addEventListener('click', () => {
             if (myChart) {
-                const url = myChart.getDataURL({
-                    type: 'png',
-                    pixelRatio: 2,
-                    backgroundColor: '#141417'
-                });
+                const url = myChart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#141417' });
                 const link = document.createElement('a');
                 link.download = 'AHI_Health_Chart.png';
                 link.href = url;
@@ -369,8 +411,8 @@
             }
         });
 
+        // 更新左侧面板及展示图表
         function updateUI(data) {
-            // 绑定数据到面板，名称与 app.py 完全匹配
             document.getElementById('summary-ganzhi').textContent = data.wylq_summary.ganzhi;
             document.getElementById('summary-suiyun').textContent = data.wylq_summary.suiyun;
             document.getElementById('summary-sitian').textContent = data.wylq_summary.sitian;
@@ -388,10 +430,9 @@
             renderChart(data.kline_data, data.base_score);
         }
 
+        // K线图渲染
         function renderChart(klineData, baseScore) {
-            if (!myChart) {
-                myChart = echarts.init(chartContainer);
-            }
+            if (!myChart) myChart = echarts.init(chartContainer);
 
             const ages = klineData.map(d => d.age);
             const values = klineData.map(d => [d.open, d.close, d.open, d.close]);
@@ -448,29 +489,15 @@
                     axisLabel: { color: '#666', fontSize: 10 },
                     splitLine: { lineStyle: { color: 'rgba(255,255,255,0.03)' } }
                 },
-                series: [
-                    {
-                        type: 'candlestick',
-                        data: values,
-                        itemStyle: {
-                            color: '#2ca02c',
-                            color0: '#d62728',
-                            borderColor: '#2ca02c',
-                            borderColor0: '#d62728',
-                            borderWidth: 1
-                        },
-                        markLine: {
-                            symbol: ['none', 'none'],
-                            data: [
-                                {
-                                    yAxis: baseScore,
-                                    lineStyle: { color: 'rgba(255,255,255,0.2)', type: 'dashed' },
-                                    label: { show: false }
-                                }
-                            ]
-                        }
+                series: [{
+                    type: 'candlestick',
+                    data: values,
+                    itemStyle: { color: '#2ca02c', color0: '#d62728', borderColor: '#2ca02c', borderColor0: '#d62728', borderWidth: 1 },
+                    markLine: {
+                        symbol: ['none', 'none'],
+                        data: [{ yAxis: baseScore, lineStyle: { color: 'rgba(255,255,255,0.2)', type: 'dashed' }, label: { show: false } }]
                     }
-                ]
+                }]
             };
             myChart.setOption(option);
             window.addEventListener('resize', () => myChart.resize());
