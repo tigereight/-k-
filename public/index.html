@@ -216,16 +216,16 @@
                 <div id="reportSection" class="hidden glass-card p-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <h2 class="text-xl font-semibold text-white mb-6 flex items-center serif">
                         <span class="w-8 h-8 rounded-full bg-purple-500/10 text-purple-500 flex items-center justify-center mr-3 text-sm">03</span>
-                        专属健康报告
+                        全生命周期健康洞察报告
                     </h2>
                     
                     <div id="reportLoading" class="flex flex-col items-center justify-center py-12">
                         <svg class="animate-spin h-10 w-10 text-purple-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <p class="text-gray-300 font-medium tracking-wide">正在构建 AHI 动态健康模型...</p>
-                        <p class="text-gray-500 text-sm mt-2">正在处理流年碰撞与生命周期数据，专属深度报告生成中</p>
+                        <p class="text-gray-300 font-medium tracking-wide">正在唤醒千问 AI 老中医...</p>
+                        <p class="text-gray-500 text-sm mt-2">结合《三因司天方》推演您的定制养生锦囊，约需 15-20 秒</p>
                     </div>
 
-                    <div id="reportContent" class="hidden text-gray-300 leading-relaxed text-sm md:text-base"></div>
+                    <div id="reportContent" class="hidden text-gray-300 leading-relaxed whitespace-pre-wrap text-sm md:text-base"></div>
                 </div>
             </div>
         </div>
@@ -343,7 +343,7 @@
                 if (reportData.error) {
                     reportContent.innerHTML = `<span class="text-red-400 font-bold">⚠️ 报告生成异常：</span><br>${reportData.error}`;
                 } else {
-                    renderReport(reportData.report);
+                    reportContent.innerText = reportData.report;
                 }
 
             } catch (error) {
@@ -368,53 +368,6 @@
                 link.click();
             }
         });
-
-        function renderReport(text) {
-            // 财务/专业风格渲染逻辑 - 增强金融风
-            const lines = text.split('\n').filter(line => line.trim() !== '');
-            let html = '<div class="space-y-10 font-sans max-w-3xl mx-auto">';
-            
-            // 顶部装饰线
-            html += '<div class="h-1 w-20 bg-purple-500 mb-12"></div>';
-
-            lines.forEach(line => {
-                // 识别标题 (例如: 【...】 或 1. 【...】)
-                const titleMatch = line.match(/^(?:\d+\.\s*)?【(.*?)】/);
-                if (titleMatch) {
-                    const title = titleMatch[1];
-                    html += `
-                        <div class="mt-12 first:mt-0">
-                            <div class="flex items-baseline mb-6 border-b border-white/10 pb-2">
-                                <span class="text-[10px] font-mono text-purple-500/50 mr-4 tracking-tighter uppercase">Section //</span>
-                                <h3 class="text-lg font-bold text-white tracking-[0.2em] serif uppercase">${title}</h3>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // 普通段落 - 增加首字下沉或特定的边框装饰
-                    html += `
-                        <div class="relative group">
-                            <div class="absolute -left-4 top-0 bottom-0 w-px bg-white/5 group-hover:bg-purple-500/30 transition-colors duration-500"></div>
-                            <p class="text-gray-400 leading-[1.8] text-justify tracking-wide mb-6">
-                                ${line}
-                            </p>
-                        </div>
-                    `;
-                }
-            });
-            
-            // 底部免责声明风格
-            html += `
-                <div class="mt-20 pt-8 border-t border-white/5">
-                    <p class="text-[10px] text-gray-600 uppercase tracking-[0.3em] text-center">
-                        End of Confidential Health Insight Report
-                    </p>
-                </div>
-            `;
-            
-            html += '</div>';
-            reportContent.innerHTML = html;
-        }
 
         function updateUI(data) {
             // 绑定数据到面板，名称与 app.py 完全匹配
