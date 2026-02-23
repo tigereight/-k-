@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "echo 'No build needed'",
+    "build": "vite build",
     "start": "node server.ts",
     "lint": "tsc --noEmit"
   },
