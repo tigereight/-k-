@@ -212,15 +212,21 @@
                 </div>
 
                 <div id="reportSection" class="hidden glass-card p-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <h2 class="text-xl font-semibold text-white mb-6 flex items-center serif">
-                        <span class="w-8 h-8 rounded-full bg-purple-500/10 text-purple-500 flex items-center justify-center mr-3 text-sm">03</span>
-                        专属健康报告
+                    <h2 class="text-xl font-semibold text-white mb-6 flex items-center justify-between serif">
+                        <div class="flex items-center">
+                            <span class="w-8 h-8 rounded-full bg-purple-500/10 text-purple-500 flex items-center justify-center mr-3 text-sm">03</span>
+                            专属健康报告
+                        </div>
+                        <button id="copyReportBtn" class="hidden text-xs font-sans text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                            复制报告
+                        </button>
                     </h2>
                     
                     <div id="reportLoading" class="flex flex-col items-center justify-center py-12">
                         <svg class="animate-spin h-10 w-10 text-purple-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <p class="text-gray-300 font-medium tracking-wide">正在解析岁气胜复规律...</p>
-                        <p class="text-gray-500 text-sm mt-2">结合陈无择《三因司天方》推演全生命周期健康洞察，约需 20 秒</p>
+                        <p class="text-gray-300 font-medium tracking-wide">正在构建 AHI 动态健康模型...</p>
+                        <p class="text-gray-500 text-sm mt-2">正在处理流年碰撞与生命周期数据，专属深度报告生成中</p>
                     </div>
 
                     <div id="reportContent" class="hidden text-gray-300 leading-relaxed text-sm md:text-base"></div>
@@ -247,6 +253,7 @@
         const reportSection = document.getElementById('reportSection');
         const reportLoading = document.getElementById('reportLoading');
         const reportContent = document.getElementById('reportContent');
+        const copyReportBtn = document.getElementById('copyReportBtn');
         
         const yearSelect = document.getElementById('birthYear');
         const monthSelect = document.getElementById('birthMonth');
@@ -288,6 +295,7 @@
 
             reportSection.classList.add('hidden');
             reportContent.classList.add('hidden');
+            copyReportBtn.classList.add('hidden');
 
             try {
                 // Fetch K-line & Summary
@@ -320,6 +328,7 @@
                 
                 reportLoading.classList.add('hidden');
                 reportContent.classList.remove('hidden');
+                copyReportBtn.classList.remove('hidden');
                 
                 if (reportData.error) {
                     reportContent.innerHTML = `<span class="text-red-400 font-bold">⚠️ 报告生成异常：</span><br>${reportData.error}`;
@@ -367,7 +376,23 @@
                 </div>
             </div>`;
             reportContent.innerHTML = html;
+            // 存储纯文本用于复制
+            reportContent.dataset.rawText = text;
         }
+
+        // Copy Report
+        copyReportBtn.addEventListener('click', () => {
+            const text = reportContent.dataset.rawText;
+            if (text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    const originalHTML = copyReportBtn.innerHTML;
+                    copyReportBtn.innerHTML = '<span class="text-emerald-400">已复制!</span>';
+                    setTimeout(() => {
+                        copyReportBtn.innerHTML = originalHTML;
+                    }, 2000);
+                });
+            }
+        });
 
         // Save Chart Image
         saveImgBtn.addEventListener('click', () => {
