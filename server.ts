@@ -364,18 +364,19 @@ class AHIEngine {
     const hEl = this.birthHostQi.element;
     const gEl = this.birthGuestQi.element;
 
+    // 匹配用户提供的“完美版”加权逻辑
     if (ElementGeneration[gEl] === hEl || ElementGeneration[hEl] === gEl || gEl === hEl) {
-      score += 10;
+      score += 20;
     } else if (ElementOvercomes[hEl] === gEl) {
-      score -= 15;
+      score -= 20;
     } else if (ElementOvercomes[gEl] === hEl) {
       score -= 10;
     }
 
     if (this.birthGuestQi.display_name === QiType.MILD_YIN_FIRE.display_name && this.birthHostQi.display_name === QiType.WEAK_YANG_FIRE.display_name) {
-      score += 8;
+      score += 15;
     } else if (this.birthGuestQi.display_name === QiType.WEAK_YANG_FIRE.display_name && this.birthHostQi.display_name === QiType.MILD_YIN_FIRE.display_name) {
-      score -= 8;
+      score -= 15;
     }
 
     return score;
@@ -494,8 +495,8 @@ app.post("/api/calculate", (req, res) => {
       suiyun: `${yf.description} (${yf.element})`,
       sitian: ce.celestial.display_name,
       zaiquan: ce.terrestrial.display_name,
-      daily_fortune: `第 ${fortune.step_index} 运, 主: ${fortune.host}, 客: ${fortune.guest}`,
-      daily_qi: `第 ${qi.step_index} 气, 主: ${qi.host}, 客: ${qi.guest}`
+      daily_fortune: `第 ${fortune.step_index} 运 | 主: ${fortune.host} | 客: ${fortune.guest}`,
+      daily_qi: `第 ${qi.step_index} 气 | 主: ${qi.host} | 客: ${qi.guest}`
     };
 
     // K-line data
@@ -570,7 +571,7 @@ app.post("/api/generate-report", async (req, res) => {
     const klineText = kline_data.map((d: any) => `${d.age}岁:${Math.round(d.close)}分`).join(", ");
     
     const prompt = `
-你是一位精通《黄帝内经》和《三因司天方》的顶级中医大夫，同时也是一位深谙现代生活美学与身心管理的私人健康顾问。
+你是一位精通《黄帝内经》和《三因司天方》的顶级中医专家，同时也是一位深谙现代生活美学与身心管理的私人健康顾问。
 请为用户撰写一份【深度融合】古法智慧与现代审美的【全生命周期健康洞察报告】。
 
 ${SANYIN_KNOWLEDGE}
@@ -598,8 +599,9 @@ ${klineText}
 【极其重要的约束】：
 1. 严禁使用 Markdown 的加粗符号（**）、列表符号（- 或 *）或任何代码块。
 2. 严禁推荐具体方药名称。
-3. 语言风格：专业、考究、灵动。要有一种“老中医在私人会所与你品茶闲谈”的尊贵感与亲和力。
-4. 直接输出纯文本。
+3. 严禁提及“千问”、“阿里”或任何 AI 模型的名称。
+4. 语言风格：专业、考究、灵动。展现尊贵感与亲和力。
+5. 直接输出纯文本。
 `;
 
     const response = await axios.post(
