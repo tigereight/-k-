@@ -24,6 +24,7 @@
             background-color: var(--bg-main);
             color: var(--text-primary);
             background-image: radial-gradient(circle at 50% -20%, #1a1a2e 0%, transparent 70%);
+            overflow-x: hidden; /* 防止横向滚动条出现 */
         }
 
         .serif { font-family: 'Noto Serif SC', serif; }
@@ -89,7 +90,7 @@
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-10 overflow-y-auto">
+<body class="min-h-screen p-4 md:p-10">
     <div class="max-w-7xl mx-auto">
         <header class="mb-12 text-center">
             <h1 class="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight serif">五运六气健康分析系统</h1>
@@ -102,8 +103,7 @@
             </div>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div class="lg:col-span-4 space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"> <div class="lg:col-span-4 space-y-6">
                 <div class="glass-card p-8">
                     <h2 class="text-xl font-semibold text-white mb-8 flex items-center serif">
                         <span class="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mr-3 text-sm">01</span>
@@ -177,8 +177,9 @@
                 </div>
             </div>
 
-            <div class="lg:col-span-8 flex flex-col space-y-6">
-                <div class="glass-card p-8 relative overflow-hidden flex-shrink-0">
+            <div class="lg:col-span-8 space-y-6"> 
+                
+                <div class="glass-card p-8 relative">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                         <div>
                             <h2 class="text-2xl font-bold text-white serif">AHI 天人和谐动态趋势</h2>
@@ -195,9 +196,7 @@
                         </div>
                     </div>
 
-                    <div id="chartContainer" class="w-full min-h-[450px]"></div>
-                    
-                    <div id="chartPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-[#141417] z-10">
+                    <div id="chartContainer" class="w-full h-[400px] md:h-[450px]"></div> <div id="chartPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-[#141417] z-10 rounded-xl">
                         <div class="w-24 h-24 rounded-full bg-emerald-500/5 flex items-center justify-center mb-6">
                             <svg class="w-10 h-10 text-emerald-500/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                         </div>
@@ -220,8 +219,8 @@
                     
                     <div id="reportLoading" class="flex flex-col items-center justify-center py-12">
                         <svg class="animate-spin h-10 w-10 text-purple-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <p class="text-gray-300 font-medium tracking-wide">正在构建 AHI 动态健康模型...</p>
-                        <p class="text-gray-500 text-sm mt-2">正在处理流年碰撞与生命周期数据，专属深度报告生成中</p>
+                        <p class="text-gray-300 font-medium tracking-wide">正在解析岁气胜复规律...</p>
+                        <p class="text-gray-500 text-sm mt-2">结合陈无择《三因司天方》推演全生命周期健康洞察，约需 20 秒</p>
                     </div>
 
                     <div id="reportContent" class="hidden text-gray-300 leading-relaxed text-sm md:text-base"></div>
@@ -235,7 +234,7 @@
     </div>
 
     <script>
-        // 定义各种元素的指针
+        // DOM Elements
         const form = document.getElementById('calcForm');
         const submitBtn = document.getElementById('submitBtn');
         const chartContainer = document.getElementById('chartContainer');
@@ -247,64 +246,51 @@
         
         const reportSection = document.getElementById('reportSection');
         const reportLoading = document.getElementById('reportLoading');
-        const reportContent = document.getElementById('reportContent'); // 关键：找回画板
+        const reportContent = document.getElementById('reportContent');
         
         const yearSelect = document.getElementById('birthYear');
         const monthSelect = document.getElementById('birthMonth');
         const daySelect = document.getElementById('birthDay');
 
-        // 初始化日期选择器
+        // Init Selects
         const currentYear = new Date().getFullYear();
         for (let y = currentYear; y >= 1900; y--) {
-            const opt = document.createElement('option');
-            opt.value = y; opt.textContent = y;
-            yearSelect.appendChild(opt);
+            const opt = document.createElement('option'); opt.value = y; opt.textContent = y; yearSelect.appendChild(opt);
         }
         for (let m = 1; m <= 12; m++) {
-            const opt = document.createElement('option');
-            opt.value = m; opt.textContent = m;
-            monthSelect.appendChild(opt);
+            const opt = document.createElement('option'); opt.value = m; opt.textContent = m; monthSelect.appendChild(opt);
         }
         function updateDays() {
-            const y = parseInt(yearSelect.value);
-            const m = parseInt(monthSelect.value);
-            const daysInMonth = new Date(y, m, 0).getDate();
-            const currentVal = daySelect.value;
+            const y = parseInt(yearSelect.value); const m = parseInt(monthSelect.value);
+            const daysInMonth = new Date(y, m, 0).getDate(); const currentVal = daySelect.value;
             daySelect.innerHTML = '';
             for (let d = 1; d <= daysInMonth; d++) {
-                const opt = document.createElement('option');
-                opt.value = d; opt.textContent = d;
-                daySelect.appendChild(opt);
+                const opt = document.createElement('option'); opt.value = d; opt.textContent = d; daySelect.appendChild(opt);
             }
             if (currentVal && currentVal <= daysInMonth) daySelect.value = currentVal;
         }
-        yearSelect.addEventListener('change', updateDays);
-        monthSelect.addEventListener('change', updateDays);
-        updateDays();
-        yearSelect.value = 1990;
-        monthSelect.value = 1;
-        daySelect.value = 1;
+        yearSelect.addEventListener('change', updateDays); monthSelect.addEventListener('change', updateDays);
+        updateDays(); yearSelect.value = 1990; monthSelect.value = 1; daySelect.value = 1;
 
         let myChart = null;
 
-        // 表单提交事件
+        // Submit Form
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const year = parseInt(yearSelect.value);
             const month = parseInt(monthSelect.value);
             const day = parseInt(daySelect.value);
 
-            // 按钮变灰，显示加载
+            // Set Loading UI
             const originalBtnHTML = submitBtn.innerHTML;
             submitBtn.innerHTML = `<svg class="animate-spin w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> <span>推演数据中...</span>`;
             submitBtn.disabled = true;
 
-            // 隐藏上一次的报告
             reportSection.classList.add('hidden');
             reportContent.classList.add('hidden');
 
             try {
-                // 第一步：请求核心计算数据
+                // Fetch K-line & Summary
                 const calcResponse = await fetch('/api/calculate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -314,37 +300,31 @@
                 const calcData = await calcResponse.json();
                 if (calcData.error) throw new Error('计算失败: ' + calcData.error);
 
-                // 更新左侧面板与图表
                 updateUI(calcData);
                 
-                // 移动端平滑滚动
                 if(window.innerWidth < 1024) {
                     summarySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
 
-                // 第二步：展示报告 Loading，请求 AI 报告
+                // Show Loading & Fetch AI
                 reportSection.classList.remove('hidden');
                 reportLoading.classList.remove('hidden');
 
                 const reportResponse = await fetch('/api/generate-report', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        wylq_summary: calcData.wylq_summary,
-                        kline_data: calcData.kline_data 
-                    })
+                    body: JSON.stringify({ wylq_summary: calcData.wylq_summary, kline_data: calcData.kline_data })
                 });
 
                 const reportData = await reportResponse.json();
                 
-                // 渲染报告结果
                 reportLoading.classList.add('hidden');
                 reportContent.classList.remove('hidden');
                 
                 if (reportData.error) {
                     reportContent.innerHTML = `<span class="text-red-400 font-bold">⚠️ 报告生成异常：</span><br>${reportData.error}`;
                 } else {
-                    renderReport(reportData.report); // 调用渲染函数
+                    renderReport(reportData.report);
                 }
 
             } catch (error) {
@@ -355,35 +335,27 @@
             }
         });
 
-        // 渲染极具高级感的金融排版报告
+        // Parse & Render AI Report UI
         function renderReport(text) {
-            // 切割换行符
             const lines = text.split('\n').filter(line => line.trim() !== '');
-            let html = '<div class="space-y-10 font-sans max-w-3xl mx-auto">';
-            
-            html += '<div class="h-1 w-20 bg-purple-500 mb-12"></div>';
+            let html = '<div class="space-y-10 font-sans max-w-3xl mx-auto"><div class="h-1 w-20 bg-purple-500 mb-12"></div>';
 
             lines.forEach(line => {
-                // 拦截 【标题】
                 const titleMatch = line.match(/^(?:\d+\.\s*)?【(.*?)】/);
                 if (titleMatch) {
-                    const title = titleMatch[1];
                     html += `
                         <div class="mt-12 first:mt-0">
                             <div class="flex items-baseline mb-6 border-b border-white/10 pb-2">
                                 <span class="text-[10px] font-mono text-purple-500/50 mr-4 tracking-tighter uppercase">Section //</span>
-                                <h3 class="text-lg font-bold text-white tracking-[0.2em] serif uppercase">${title}</h3>
+                                <h3 class="text-lg font-bold text-white tracking-[0.2em] serif uppercase">${titleMatch[1]}</h3>
                             </div>
                         </div>
                     `;
                 } else {
-                    // 普通段落带侧边紫光交互
                     html += `
                         <div class="relative group">
                             <div class="absolute -left-4 top-0 bottom-0 w-px bg-white/5 group-hover:bg-purple-500/30 transition-colors duration-500"></div>
-                            <p class="text-gray-400 leading-[1.8] text-justify tracking-wide mb-6">
-                                ${line}
-                            </p>
+                            <p class="text-gray-400 leading-[1.8] text-justify tracking-wide mb-6">${line}</p>
                         </div>
                     `;
                 }
@@ -391,28 +363,25 @@
             
             html += `
                 <div class="mt-20 pt-8 border-t border-white/5">
-                    <p class="text-[10px] text-gray-600 uppercase tracking-[0.3em] text-center">
-                        End of Confidential Health Insight Report
-                    </p>
+                    <p class="text-[10px] text-gray-600 uppercase tracking-[0.3em] text-center">End of Confidential Health Insight Report</p>
                 </div>
             </div>`;
-            
             reportContent.innerHTML = html;
         }
 
-        // 保存图片
+        // Save Chart Image
         saveImgBtn.addEventListener('click', () => {
             if (myChart) {
-                const url = myChart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#141417' });
                 const link = document.createElement('a');
                 link.download = 'AHI_Health_Chart.png';
-                link.href = url;
+                link.href = myChart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#141417' });
                 link.click();
             }
         });
 
-        // 更新左侧面板及展示图表
+        // Bind Summary Data
         function updateUI(data) {
+            // FIX: Use daily_fortune and daily_qi instead of current_fortune and current_qi
             document.getElementById('summary-ganzhi').textContent = data.wylq_summary.ganzhi;
             document.getElementById('summary-suiyun').textContent = data.wylq_summary.suiyun;
             document.getElementById('summary-sitian').textContent = data.wylq_summary.sitian;
@@ -430,73 +399,31 @@
             renderChart(data.kline_data, data.base_score);
         }
 
-        // K线图渲染
+        // ECharts Config
         function renderChart(klineData, baseScore) {
             if (!myChart) myChart = echarts.init(chartContainer);
 
-            const ages = klineData.map(d => d.age);
-            const values = klineData.map(d => [d.open, d.close, d.open, d.close]);
-
             const option = {
-                backgroundColor: 'transparent',
-                animationDuration: 2000,
+                backgroundColor: 'transparent', animationDuration: 2000,
                 tooltip: {
-                    trigger: 'axis',
-                    axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-                    backgroundColor: '#1c1c21',
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    padding: 12,
-                    textStyle: { color: '#f0f0f2', fontSize: 12 },
+                    trigger: 'axis', axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+                    backgroundColor: '#1c1c21', borderColor: 'rgba(255,255,255,0.1)', padding: 12, textStyle: { color: '#f0f0f2', fontSize: 12 },
                     formatter: function (params) {
-                        const data = params[0];
-                        const age = data.name;
-                        const open = data.value[1];
-                        const close = data.value[2];
-                        const diff = (close - open).toFixed(2);
-                        const color = close >= open ? '#2ca02c' : '#d62728';
-                        return `
-                            <div style="font-family: 'Inter', sans-serif;">
-                                <div style="font-weight: 600; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">年龄: ${age} 岁</div>
-                                <div style="display: flex; justify-content: space-between; gap: 20px; margin-bottom: 4px;">
-                                    <span style="color: #94949e">开盘指数</span>
-                                    <span style="font-family: 'JetBrains Mono'">${open}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; gap: 20px; margin-bottom: 4px;">
-                                    <span style="color: #94949e">收盘指数</span>
-                                    <span style="font-family: 'JetBrains Mono'">${close}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; gap: 20px;">
-                                    <span style="color: #94949e">年度变动</span>
-                                    <span style="font-family: 'JetBrains Mono'; color: ${color}">${diff > 0 ? '+' : ''}${diff}</span>
-                                </div>
-                            </div>
-                        `;
+                        const d = params[0], age = d.name, o = d.value[1], c = d.value[2], diff = (c - o).toFixed(2), col = c >= o ? '#2ca02c' : '#d62728';
+                        return `<div style="font-family:'Inter',sans-serif;">
+                                <div style="font-weight:600;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:4px;">年龄: ${age} 岁</div>
+                                <div style="display:flex;justify-content:space-between;gap:20px;margin-bottom:4px;"><span style="color:#94949e">开盘指数</span><span style="font-family:'JetBrains Mono'">${o}</span></div>
+                                <div style="display:flex;justify-content:space-between;gap:20px;margin-bottom:4px;"><span style="color:#94949e">收盘指数</span><span style="font-family:'JetBrains Mono'">${c}</span></div>
+                                <div style="display:flex;justify-content:space-between;gap:20px;"><span style="color:#94949e">年度变动</span><span style="font-family:'JetBrains Mono';color:${col}">${diff > 0 ? '+' : ''}${diff}</span></div></div>`;
                     }
                 },
                 grid: { left: '4%', right: '4%', bottom: '8%', top: '8%', containLabel: true },
-                xAxis: {
-                    type: 'category',
-                    data: ages,
-                    axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-                    axisLabel: { color: '#666', fontSize: 10 },
-                    axisTick: { show: false }
-                },
-                yAxis: {
-                    scale: true,
-                    min: 0,
-                    max: 100,
-                    axisLine: { show: false },
-                    axisLabel: { color: '#666', fontSize: 10 },
-                    splitLine: { lineStyle: { color: 'rgba(255,255,255,0.03)' } }
-                },
+                xAxis: { type: 'category', data: klineData.map(d => d.age), axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }, axisLabel: { color: '#666', fontSize: 10 }, axisTick: { show: false } },
+                yAxis: { scale: true, min: 0, max: 100, axisLine: { show: false }, axisLabel: { color: '#666', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.03)' } } },
                 series: [{
-                    type: 'candlestick',
-                    data: values,
+                    type: 'candlestick', data: klineData.map(d => [d.open, d.close, Math.min(d.open, d.close), Math.max(d.open, d.close)]),
                     itemStyle: { color: '#2ca02c', color0: '#d62728', borderColor: '#2ca02c', borderColor0: '#d62728', borderWidth: 1 },
-                    markLine: {
-                        symbol: ['none', 'none'],
-                        data: [{ yAxis: baseScore, lineStyle: { color: 'rgba(255,255,255,0.2)', type: 'dashed' }, label: { show: false } }]
-                    }
+                    markLine: { symbol: ['none', 'none'], data: [{ yAxis: baseScore, lineStyle: { color: 'rgba(255,255,255,0.2)', type: 'dashed' }, label: { show: false } }] }
                 }]
             };
             myChart.setOption(option);
