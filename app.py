@@ -380,12 +380,8 @@ def calculate():
             "suiyun": f"{yf['description']} ({yf['element']})",
             "sitian": ce['celestial'].display_name,
             "zaiquan": ce['terrestrial'].display_name,
-            "fortune_step": fortune['step_index'],
-            "fortune_host": fortune['host'],
-            "fortune_guest": fortune['guest'],
-            "qi_step": qi['step_index'],
-            "qi_host": qi['host'],
-            "qi_guest": qi['guest']
+            "daily_fortune": f"第 {fortune['step_index']} 运, 主: {fortune['host']}, 客: {fortune['guest']}",
+            "daily_qi": f"第 {qi['step_index']} 气, 主: {qi['host']}, 客: {qi['guest']}"
         }
 
         kline_data = []
