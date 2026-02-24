@@ -57,7 +57,8 @@ const ModuleWrapper = ({
   children, 
   isWaiting = false, 
   waitingText = "等待生成...",
-  className = ""
+  className = "",
+  badgeColor = "emerald"
 }: { 
   id?: string;
   title: string; 
@@ -66,12 +67,23 @@ const ModuleWrapper = ({
   isWaiting?: boolean;
   waitingText?: string;
   className?: string;
+  badgeColor?: 'emerald' | 'blue' | 'cyan' | 'purple';
 }) => {
+  const badgeColors = {
+    emerald: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+    blue: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+    cyan: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
+    purple: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+  };
+
   return (
     <div id={id} className={cn("glass-card relative overflow-hidden", className)}>
       <div className="p-6 md:p-8">
         <div className="flex items-center mb-6">
-          <span className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mr-3 text-sm font-mono border border-emerald-500/20">
+          <span className={cn(
+            "w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm font-mono border",
+            badgeColors[badgeColor]
+          )}>
             {number}
           </span>
           <h2 className="text-xl font-semibold text-white tracking-tight serif">{title}</h2>
@@ -329,7 +341,7 @@ export default function App() {
         <main className="space-y-8">
           
           {/* Module 01: Input */}
-          <ModuleWrapper title="先天排盘" number="01">
+          <ModuleWrapper title="先天排盘" number="01" badgeColor="emerald">
             <form onSubmit={handleCalculate} className="space-y-6">
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
@@ -376,7 +388,7 @@ export default function App() {
               <button 
                 type="submit" 
                 disabled={isCalculating}
-                className="w-full py-4 px-6 rounded-xl font-bold bg-emerald-800 hover:bg-emerald-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white transition-all flex items-center justify-center space-x-2 shadow-lg shadow-emerald-900/20"
+                className="w-full py-4 px-6 rounded-xl font-bold bg-[#238636] hover:bg-[#2ea043] disabled:bg-zinc-800 disabled:text-zinc-600 text-white transition-all flex items-center justify-center space-x-2 shadow-lg shadow-emerald-900/10"
               >
                 {isCalculating ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -393,6 +405,7 @@ export default function App() {
             id="module-02"
             title="运气概要" 
             number="02" 
+            badgeColor="blue"
             isWaiting={!hasCalculated}
             waitingText="待命 · 请在上方输入出生日期"
           >
@@ -442,6 +455,7 @@ export default function App() {
             id="module-03"
             title="AHI 天人和谐动态趋势" 
             number="03" 
+            badgeColor="cyan"
             isWaiting={!hasCalculated}
             waitingText="系统将为您演算六十载运气碰撞"
           >
@@ -486,6 +500,7 @@ export default function App() {
             id="module-04"
             title="专属健康报告" 
             number="04"
+            badgeColor="purple"
           >
             <div className="relative min-h-[200px]">
               {!hasGeneratedReport && !isGeneratingReport && (
