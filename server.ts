@@ -123,39 +123,51 @@ class QiType {
 
 class AstronomyEngine {
   static getExactJieqi(year: number, termName: string): Date {
-    // 尝试在目标年份及其前一年搜索，以处理跨阴历年的情况
-    const checkYears = [year, year - 1];
-    for (const y of checkYears) {
-      try {
-        // 选一个年中日期确保在当前阴历年内
-        const lunar = Solar.fromYmd(y, 6, 15).getLunar();
-        const jieqiObj = lunar.getJieQiTable()[termName];
-        if (jieqiObj) {
-          const dt = new Date(
-            jieqiObj.getYear(), jieqiObj.getMonth() - 1, jieqiObj.getDay(),
-            jieqiObj.getHour(), jieqiObj.getMinute(), jieqiObj.getSecond()
-          );
-          if (dt.getFullYear() === year) return dt;
+    try {
+      // 预定义的月份映射，提高搜索效率
+      const monthMap: Record<string, number> = {
+        "大寒": 1, "春分": 3, "小满": 5, "芒种": 6, "大暑": 7, "处暑": 8, "秋分": 9, "小雪": 11, "立冬": 11
+      };
+      const m = monthMap[termName] || 6;
+
+      // 搜索范围：目标月及其前后一个月，以及前一年的 12 月（处理跨年大寒）
+      const checkMonths = [
+        { y: year, m: m },
+        { y: year, m: m - 1 },
+        { y: year, m: m + 1 },
+        { y: year - 1, m: 12 }
+      ];
+
+      for (let pos of checkMonths) {
+        let y = pos.y;
+        let mon = pos.m;
+        if (mon < 1) { y -= 1; mon = 12; }
+        if (mon > 12) { y += 1; mon = 1; }
+        
+        const lunar = Solar.fromYmd(y, mon, 15).getLunar();
+        const jieqi = lunar.getJieQiTable();
+        // 兼容不同版本的 lunar-javascript (Map vs Object)
+        const term = (typeof (jieqi as any).get === 'function') ? (jieqi as any).get(termName) : (jieqi as any)[termName];
+        
+        if (term && term.getYear() === year) {
+          return new Date(term.getYear(), term.getMonth() - 1, term.getDay(), term.getHour(), term.getMinute(), term.getSecond());
         }
-      } catch (e) {
-        console.error(`Error finding jieqi ${termName} in year ${y}:`, e);
       }
-    }
-    
-    // 备选方案：直接遍历月份搜索
-    for (let m = 1; m <= 12; m++) {
-      const lunar = Solar.fromYmd(year, m, 15).getLunar();
-      const jieqiObj = lunar.getJieQiTable()[termName];
-      if (jieqiObj) {
-        const dt = new Date(
-          jieqiObj.getYear(), jieqiObj.getMonth() - 1, jieqiObj.getDay(),
-          jieqiObj.getHour(), jieqiObj.getMinute(), jieqiObj.getSecond()
-        );
-        if (dt.getFullYear() === year) return dt;
+
+      // 兜底：遍历全年
+      for (let targetM = 1; targetM <= 12; targetM++) {
+        const lunar = Solar.fromYmd(year, targetM, 15).getLunar();
+        const jieqi = lunar.getJieQiTable();
+        const term = (typeof (jieqi as any).get === 'function') ? (jieqi as any).get(termName) : (jieqi as any)[termName];
+        if (term && term.getYear() === year) {
+          return new Date(term.getYear(), term.getMonth() - 1, term.getDay(), term.getHour(), term.getMinute(), term.getSecond());
+        }
       }
+    } catch (e) {
+      console.error(`Error in getExactJieqi for ${termName} in ${year}:`, e);
     }
 
-    throw new Error(`无法定位 ${year}年 的 ${termName} 节气时间`);
+    throw new Error(`无法定位 ${year}年 的 ${termName} 节气时间，请检查历法库状态`);
   }
 }
 
@@ -476,10 +488,11 @@ class AHIEngine {
 // ==========================================
 
 app.post("/api/calculate", (req, res) => {
+  console.log("Received calculation request:", req.body);
   try {
     const { year, month, day } = req.body;
     if (!year || !month || !day) {
-      return res.status(400).json({ error: "Missing year, month, or day" });
+      return res.status(400).json({ error: "请求参数不完整 (year/month/day)" });
     }
 
     const birthDate = new Date(year, month - 1, day, 12, 0);
@@ -488,7 +501,10 @@ app.post("/api/calculate", (req, res) => {
 
     // Summary
     const yf = calc.getYearFortune();
-    const ce = calc.getClimaticEffect()!;
+    const ce = calc.getClimaticEffect();
+    if (!ce) {
+      return res.status(500).json({ error: "无法计算该年份的气候效应 (Climatic Effect)" });
+    }
     const fortune = calc.getCurrentFortune();
     const qi = calc.getCurrentQi();
 
