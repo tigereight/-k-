@@ -637,8 +637,9 @@ ${klineText}
 });
 
   // Vite middleware for development
+  let vite: any;
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
+    vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
@@ -651,9 +652,16 @@ ${klineText}
   }
 
   const PORT = process.env.PORT || 3000;
-  app.listen(Number(PORT), "0.0.0.0", () => {
+  const server = app.listen(Number(PORT), "0.0.0.0", () => {
     console.log(`Server running on port ${PORT}`);
   });
+
+  // Fix: Handle WebSocket upgrades for Vite HMR to eliminate console errors
+  if (vite) {
+    server.on('upgrade', (req, socket, head) => {
+      vite.ws.handleUpgrade(req, socket, head);
+    });
+  }
 }
 
 startServer();
