@@ -8,11 +8,13 @@ import {
   Copy, 
   Download, 
   FileText, 
-  Info, 
   Zap,
   Loader2,
-  CheckCircle2,
-  Clock
+  Clock,
+  ArrowRight,
+  Sparkles,
+  Shield,
+  Compass
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -50,68 +52,16 @@ interface ReportResponse {
 
 // --- Components ---
 
-const ModuleWrapper = ({ 
-  id, 
-  title, 
-  number, 
-  children, 
-  isWaiting = false, 
-  waitingText = "等待生成...",
-  className = "",
-  badgeColor = "emerald"
-}: { 
-  id?: string;
-  title: string; 
-  number: string; 
-  children: React.ReactNode; 
-  isWaiting?: boolean;
-  waitingText?: string;
-  className?: string;
-  badgeColor?: 'emerald' | 'blue' | 'cyan' | 'purple';
-}) => {
-  const badgeColors = {
-    emerald: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-    blue: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-    cyan: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
-    purple: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-  };
-
-  return (
-    <div id={id} className={cn("glass-card relative overflow-hidden", className)}>
-      <div className="p-6 md:p-8">
-        <div className="flex items-center mb-6">
-          <span className={cn(
-            "w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm font-mono border",
-            badgeColors[badgeColor]
-          )}>
-            {number}
-          </span>
-          <h2 className="text-xl font-semibold text-white tracking-tight serif">{title}</h2>
-        </div>
-        
-        <div className={cn("relative transition-all duration-500", isWaiting && "min-h-[240px]")}>
-          {children}
-          
-          <AnimatePresence>
-            {isWaiting && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950/60 backdrop-blur-[2px] rounded-xl border border-dashed border-white/5"
-              >
-                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                  <Clock className="w-6 h-6 text-white/20" />
-                </div>
-                <p className="text-zinc-500 text-base serif tracking-wide">{waitingText}</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+const SectionHeader = ({ title, subtitle, number }: { title: string; subtitle?: string; number: string }) => (
+  <div className="mb-12">
+    <div className="flex items-center gap-4 mb-2">
+      <span className="text-[10px] font-mono text-jade tracking-[0.3em] uppercase">Phase {number}</span>
+      <div className="h-px flex-1 bg-white/10"></div>
     </div>
-  );
-};
+    <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight serif">{title}</h2>
+    {subtitle && <p className="text-zinc-500 mt-2 text-sm tracking-wide">{subtitle}</p>}
+  </div>
+);
 
 export default function App() {
   const [year, setYear] = useState(1990);
@@ -149,9 +99,8 @@ export default function App() {
       setCalcData(response.data);
       setHasCalculated(true);
       
-      // Scroll to results
       setTimeout(() => {
-        document.getElementById('module-02')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('results-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     } catch (error) {
       console.error("Calculation error:", error);
@@ -173,37 +122,14 @@ export default function App() {
       setReport(response.data.report);
       setHasGeneratedReport(true);
       
-      // Scroll to report
       setTimeout(() => {
-        document.getElementById('module-04')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('report-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     } catch (error) {
       console.error("Report generation error:", error);
       alert("报告生成失败，请稍后重试。");
     } finally {
       setIsGeneratingReport(false);
-    }
-  };
-
-  const handleCopyReport = () => {
-    if (report) {
-      navigator.clipboard.writeText(report);
-      alert("报告已复制到剪贴板");
-    }
-  };
-
-  const handleSaveImage = () => {
-    if (chartRef.current) {
-      const instance = chartRef.current.getEchartsInstance();
-      const url = instance.getDataURL({
-        type: 'png',
-        pixelRatio: 2,
-        backgroundColor: '#141417'
-      });
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `AHI_Health_Chart_${year}_${month}_${day}.png`;
-      link.click();
     }
   };
 
@@ -216,9 +142,9 @@ export default function App() {
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-        backgroundColor: '#1c1c21',
+        backgroundColor: '#121212',
         borderColor: 'rgba(255,255,255,0.1)',
-        padding: 12,
+        padding: 16,
         textStyle: { color: '#f0f0f2', fontSize: 12 },
         formatter: (params: any) => {
           const d = params[0];
@@ -226,23 +152,23 @@ export default function App() {
           const o = d.value[1];
           const c = d.value[2];
           const diffVal = parseFloat((c - o).toFixed(2));
-          const col = c >= o ? '#2ca02c' : '#d62728';
+          const col = c >= o ? '#00A86B' : '#FF4444';
           return `
             <div class="font-sans">
               <div class="font-bold mb-2 border-b border-white/10 pb-1">年龄: ${age} 岁</div>
-              <div class="flex justify-between gap-4 mb-1"><span class="text-zinc-500">开盘指数</span><span class="font-mono">${o}</span></div>
-              <div class="flex justify-between gap-4 mb-1"><span class="text-zinc-500">收盘指数</span><span class="font-mono">${c}</span></div>
-              <div class="flex justify-between gap-4"><span class="text-zinc-500">年度变动</span><span class="font-mono" style="color:${col}">${diffVal > 0 ? '+' : ''}${diffVal}</span></div>
+              <div class="flex justify-between gap-8 mb-1"><span class="text-zinc-500">开盘指数</span><span class="font-mono">${o}</span></div>
+              <div class="flex justify-between gap-8 mb-1"><span class="text-zinc-500">收盘指数</span><span class="font-mono">${c}</span></div>
+              <div class="flex justify-between gap-8"><span class="text-zinc-500">年度变动</span><span class="font-mono" style="color:${col}">${diffVal > 0 ? '+' : ''}${diffVal}</span></div>
             </div>
           `;
         }
       },
-      grid: { left: '4%', right: '4%', bottom: '8%', top: '8%', containLabel: true },
+      grid: { left: '2%', right: '2%', bottom: '5%', top: '5%', containLabel: true },
       xAxis: { 
         type: 'category', 
         data: calcData.kline_data.map(d => d.age), 
-        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }, 
-        axisLabel: { color: '#666', fontSize: 10 }, 
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }, 
+        axisLabel: { color: '#666', fontSize: 10, margin: 15 }, 
         axisTick: { show: false } 
       },
       yAxis: { 
@@ -251,23 +177,23 @@ export default function App() {
         max: 100, 
         axisLine: { show: false }, 
         axisLabel: { color: '#666', fontSize: 10 }, 
-        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.03)' } } 
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.02)' } } 
       },
       series: [{
         type: 'candlestick',
         data: calcData.kline_data.map(d => [d.open, d.close, Math.min(d.open, d.close), Math.max(d.open, d.close)]),
         itemStyle: { 
-          color: '#2ca02c', 
-          color0: '#d62728', 
-          borderColor: '#2ca02c', 
-          borderColor0: '#d62728', 
+          color: '#00A86B', 
+          color0: '#FF4444', 
+          borderColor: '#00A86B', 
+          borderColor0: '#FF4444', 
           borderWidth: 1 
         },
         markLine: { 
           symbol: ['none', 'none'], 
           data: [{ 
             yAxis: calcData.base_score, 
-            lineStyle: { color: 'rgba(255,255,255,0.2)', type: 'dashed' }, 
+            lineStyle: { color: 'rgba(212,175,55,0.2)', type: 'dashed' }, 
             label: { show: false } 
           }] 
         }
@@ -278,31 +204,27 @@ export default function App() {
   const renderReportContent = (text: string) => {
     const lines = text.split('\n').filter(line => line.trim() !== '');
     return (
-      <div className="space-y-10 font-sans max-w-3xl mx-auto">
-        <div className="h-1 w-20 bg-purple-500 mb-12"></div>
+      <div className="space-y-12 font-sans max-w-2xl mx-auto py-12">
         {lines.map((line, idx) => {
           const titleMatch = line.match(/^(?:\d+\.\s*)?【(.*?)】/);
           if (titleMatch) {
             return (
-              <div key={idx} className="mt-12 first:mt-0">
-                <div className="flex items-baseline mb-6 border-b border-white/10 pb-2">
-                  <span className="text-[10px] font-mono text-purple-500/50 mr-4 tracking-tighter uppercase">Section //</span>
-                  <h3 className="text-lg font-bold text-white tracking-[0.2em] serif uppercase">{titleMatch[1]}</h3>
+              <div key={idx} className="mt-16 first:mt-0">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-8 h-px bg-gold/30"></div>
+                  <h3 className="text-xl font-bold text-gold tracking-[0.2em] serif uppercase">{titleMatch[1]}</h3>
+                  <div className="flex-1 h-px bg-white/5"></div>
                 </div>
               </div>
             );
           } else {
             return (
-              <div key={idx} className="relative group">
-                <div className="absolute -left-4 top-0 bottom-0 w-px bg-white/5 group-hover:bg-purple-500/30 transition-colors duration-500"></div>
-                <p className="text-zinc-400 leading-[1.8] text-justify tracking-wide mb-6">{line}</p>
-              </div>
+              <p key={idx} className="text-zinc-400 leading-[2] text-lg tracking-wide mb-8 font-light">
+                {line}
+              </p>
             );
           }
         })}
-        <div className="mt-20 pt-8 border-t border-white/5">
-          <p className="text-[10px] text-zinc-600 uppercase tracking-[0.3em] text-center">End of Confidential Health Insight Report</p>
-        </div>
       </div>
     );
   };
@@ -312,272 +234,334 @@ export default function App() {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-[#f0f0f2] selection:bg-emerald-500/30 p-4 md:p-10">
-      <div className="max-w-4xl mx-auto space-y-12">
-        
-        {/* Header */}
-        <header className="text-center space-y-4">
-          <motion.h1 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-5xl font-bold text-white tracking-tight serif"
-          >
-            五运六气健康分析系统
-          </motion.h1>
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-col items-center"
-          >
-            <p className="text-lg text-zinc-500 max-w-2xl leading-relaxed">
-              基于传统中医运气学说的年度天人和谐健康指数<br />
-              <span className="text-sm opacity-60 font-light tracking-widest uppercase mt-1 block">Annual Harmony Index (AHI)</span>
-            </p>
-            <div className="h-1 w-20 bg-emerald-500 mt-6 rounded-full opacity-50"></div>
-          </motion.div>
-        </header>
+    <div className="min-h-screen bg-obsidian selection:bg-jade/30">
+      {/* Hero Section */}
+      <section className="relative h-screen flex flex-col items-center justify-center overflow-hidden px-6">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,168,107,0.05),transparent_70%)]"></div>
+        <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-jade/10 rounded-full blur-[120px] animate-pulse"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gold/5 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+        </div>
 
-        <main className="space-y-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          className="relative z-10 text-center space-y-8 max-w-4xl"
+        >
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="h-px w-12 bg-jade/50"></div>
+            <span className="text-[10px] uppercase tracking-[0.5em] text-jade font-medium">Ancient Wisdom // Modern Insight</span>
+            <div className="h-px w-12 bg-jade/50"></div>
+          </div>
           
-          {/* Module 01: Input */}
-          <ModuleWrapper title="先天排盘" number="01" badgeColor="emerald">
-            <form onSubmit={handleCalculate} className="space-y-6">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <label className="block text-[10px] text-zinc-500 uppercase tracking-widest">出生年份</label>
-                  <div className="relative">
-                    <select 
-                      value={year}
-                      onChange={(e) => setYear(parseInt(e.target.value))}
-                      className="w-full bg-zinc-900 border border-white/5 rounded-xl p-3 text-sm appearance-none focus:outline-none focus:border-emerald-500/50 transition-colors"
-                    >
-                      {years.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 pointer-events-none" />
+          <h1 className="text-6xl md:text-8xl font-bold text-white tracking-tighter serif leading-tight">
+            五运六气<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-jade via-white to-gold">健康分析系统</span>
+          </h1>
+          
+          <p className="text-xl text-zinc-500 max-w-2xl mx-auto font-light leading-relaxed tracking-wide">
+            基于《黄帝内经》运气学说，演算天人感应之律。<br />
+            探索生命周期中的 AHI (Annual Harmony Index) 动态趋势。
+          </p>
+
+          <div className="pt-12">
+            <motion.a 
+              href="#input-section"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="group inline-flex items-center gap-3 px-10 py-5 bg-white text-obsidian rounded-full font-bold transition-all hover:bg-jade hover:text-white"
+            >
+              <span>开启演算</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </motion.a>
+          </div>
+        </motion.div>
+
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-30">
+          <span className="text-[10px] uppercase tracking-widest">Scroll to begin</span>
+          <div className="w-px h-12 bg-gradient-to-b from-white to-transparent"></div>
+        </div>
+      </section>
+
+      {/* Input Section */}
+      <section id="input-section" className="py-32 px-6 max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-24 items-center">
+          <div>
+            <SectionHeader 
+              number="01" 
+              title="先天排盘" 
+              subtitle="输入您的出生日期，系统将根据天文历法精确定位您的先天运气格局。"
+            />
+            
+            <div className="space-y-12">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                  { label: "出生年份", value: year, setter: setYear, options: years },
+                  { label: "月份", value: month, setter: setMonth, options: months },
+                  { label: "日期", value: day, setter: setDay, options: days }
+                ].map((item, i) => (
+                  <div key={i} className="space-y-3">
+                    <label className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] ml-1">{item.label}</label>
+                    <div className="relative group">
+                      <select 
+                        value={item.value}
+                        onChange={(e) => item.setter(parseInt(e.target.value))}
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-white appearance-none focus:outline-none focus:border-jade/50 transition-all group-hover:bg-white/[0.05]"
+                      >
+                        {item.options.map(opt => <option key={opt} value={opt} className="bg-obsidian">{opt}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 pointer-events-none group-hover:text-jade transition-colors" />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-[10px] text-zinc-500 uppercase tracking-widest">月份</label>
-                  <div className="relative">
-                    <select 
-                      value={month}
-                      onChange={(e) => setMonth(parseInt(e.target.value))}
-                      className="w-full bg-zinc-900 border border-white/5 rounded-xl p-3 text-sm appearance-none focus:outline-none focus:border-emerald-500/50 transition-colors"
-                    >
-                      {months.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 pointer-events-none" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-[10px] text-zinc-500 uppercase tracking-widest">日期</label>
-                  <div className="relative">
-                    <select 
-                      value={day}
-                      onChange={(e) => setDay(parseInt(e.target.value))}
-                      className="w-full bg-zinc-900 border border-white/5 rounded-xl p-3 text-sm appearance-none focus:outline-none focus:border-emerald-500/50 transition-colors"
-                    >
-                      {days.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 pointer-events-none" />
-                  </div>
-                </div>
+                ))}
               </div>
-              
+
               <button 
-                type="submit" 
+                onClick={handleCalculate}
                 disabled={isCalculating}
-                className="w-full py-4 px-6 rounded-xl font-bold bg-[#238636] hover:bg-[#2ea043] disabled:bg-zinc-800 disabled:text-zinc-600 text-white transition-all flex items-center justify-center space-x-2 shadow-lg shadow-emerald-900/10"
+                className="btn-primary w-full flex items-center justify-center gap-3 group"
               >
                 {isCalculating ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  <Zap className="w-5 h-5" />
+                  <>
+                    <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    <span className="text-lg">生成健康 K 线图</span>
+                  </>
                 )}
-                <span>生成健康 K 线图</span>
               </button>
-            </form>
-          </ModuleWrapper>
-
-          {/* Module 02: Summary */}
-          <ModuleWrapper 
-            id="module-02"
-            title="运气概要" 
-            number="02" 
-            badgeColor="blue"
-            isWaiting={!hasCalculated}
-            waitingText="待命 · 请在上方输入出生日期"
-          >
-            {calcData && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-white/5 border border-white/5 p-4 rounded-xl">
-                    <p className="text-[10px] text-zinc-500 uppercase mb-1">干支纪年</p>
-                    <p className="text-sm font-bold text-blue-400 font-mono">{calcData.wylq_summary.ganzhi}</p>
-                  </div>
-                  <div className="bg-white/5 border border-white/5 p-4 rounded-xl">
-                    <p className="text-[10px] text-zinc-500 uppercase mb-1">岁运</p>
-                    <p className="text-sm font-bold text-emerald-400">{calcData.wylq_summary.suiyun}</p>
-                  </div>
-                  <div className="bg-white/5 border border-white/5 p-4 rounded-xl">
-                    <p className="text-[10px] text-zinc-500 uppercase mb-1">司天</p>
-                    <p className="text-sm font-bold text-orange-400">{calcData.wylq_summary.sitian}</p>
-                  </div>
-                  <div className="bg-white/5 border border-white/5 p-4 rounded-xl">
-                    <p className="text-[10px] text-zinc-500 uppercase mb-1">在泉</p>
-                    <p className="text-sm font-bold text-purple-400">{calcData.wylq_summary.zaiquan}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-zinc-900/50 border border-white/5 p-4 rounded-xl">
-                    <div className="flex items-center mb-2">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 mr-2"></div>
-                      <span className="text-xs text-zinc-500">当日五运格局</span>
-                    </div>
-                    <p className="text-sm text-zinc-300 leading-relaxed">{calcData.wylq_summary.daily_fortune}</p>
-                  </div>
-                  <div className="bg-zinc-900/50 border border-white/5 p-4 rounded-xl">
-                    <div className="flex items-center mb-2">
-                      <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>
-                      <span className="text-xs text-zinc-500">当日六气格局</span>
-                    </div>
-                    <p className="text-sm text-zinc-300 leading-relaxed">{calcData.wylq_summary.daily_qi}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </ModuleWrapper>
-
-          {/* Module 03: Chart */}
-          <ModuleWrapper 
-            id="module-03"
-            title="AHI 天人和谐动态趋势" 
-            number="03" 
-            badgeColor="cyan"
-            isWaiting={!hasCalculated}
-            waitingText="系统将为您演算六十载运气碰撞"
-          >
-            {calcData && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-zinc-500">0-60岁全生命周期健康指数 K 线分析</p>
-                  <div className="flex items-center space-x-3">
-                    <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px]">
-                      <span className="text-zinc-500">先天基准:</span>
-                      <span className="text-emerald-400 font-bold ml-1 font-mono">{calcData.base_score.toFixed(1)}</span>
-                    </div>
-                    <button 
-                      onClick={handleSaveImage}
-                      className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                    >
-                      <Download className="w-4 h-4 text-zinc-400" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="h-[400px] w-full">
-                  <ReactECharts 
-                    ref={chartRef}
-                    option={getChartOption()} 
-                    style={{ height: '100%', width: '100%' }}
-                    theme="dark"
-                  />
-                </div>
-
-                <div className="flex items-center justify-center space-x-8 text-[10px] text-zinc-600 uppercase tracking-widest">
-                  <div className="flex items-center"><div className="w-3 h-3 bg-[#2ca02c] rounded-sm mr-2"></div> 气场升华</div>
-                  <div className="flex items-center"><div className="w-3 h-3 bg-[#d62728] rounded-sm mr-2"></div> 气场损耗</div>
-                  <div className="flex items-center"><div className="w-6 h-0 border-t border-dashed border-zinc-700 mr-2"></div> 先天基准线</div>
-                </div>
-              </div>
-            )}
-          </ModuleWrapper>
-
-          {/* Module 04: Report */}
-          <ModuleWrapper 
-            id="module-04"
-            title="专属健康报告" 
-            number="04"
-            badgeColor="purple"
-          >
-            <div className="relative min-h-[200px]">
-              {!hasGeneratedReport && !isGeneratingReport && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center space-y-6">
-                  <div className="w-16 h-16 rounded-full bg-purple-500/5 flex items-center justify-center">
-                    <FileText className="w-8 h-8 text-purple-500/30" />
-                  </div>
-                  <div className="text-center space-y-2">
-                    <p className="text-zinc-500 serif">深度报告模块已就绪</p>
-                    <p className="text-zinc-600 text-xs">点击下方按钮，启动 AI 深度解析生命周期健康大势</p>
-                  </div>
-                  <button 
-                    onClick={handleGenerateReport}
-                    disabled={!hasCalculated || isGeneratingReport}
-                    className="px-8 py-3 rounded-xl font-bold bg-purple-600 hover:bg-purple-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white transition-all flex items-center space-x-2 shadow-lg shadow-purple-900/20"
-                  >
-                    <Activity className="w-4 h-4" />
-                    <span>生成专属报告</span>
-                  </button>
-                </div>
-              )}
-
-              {isGeneratingReport && (
-                <div className="flex flex-col items-center justify-center py-20 space-y-6">
-                  <div className="relative">
-                    <Loader2 className="w-12 h-12 text-purple-500 animate-spin" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-ping"></div>
-                    </div>
-                  </div>
-                  <div className="text-center space-y-2">
-                    <p className="text-zinc-300 font-medium tracking-wide">正在构建 AHI 动态健康模型...</p>
-                    <p className="text-zinc-500 text-sm">正在处理流年碰撞与生命周期数据，专属深度报告生成中</p>
-                  </div>
-                </div>
-              )}
-
-              {hasGeneratedReport && report && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="space-y-6"
-                >
-                  <div className="flex justify-end">
-                    <button 
-                      onClick={handleCopyReport}
-                      className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
-                    >
-                      <Copy className="w-3 h-3" />
-                      复制报告
-                    </button>
-                  </div>
-                  {renderReportContent(report)}
-                </motion.div>
-              )}
             </div>
-          </ModuleWrapper>
+          </div>
 
-        </main>
+          <div className="hidden lg:block relative">
+            <div className="absolute inset-0 bg-jade/5 rounded-[40px] blur-3xl"></div>
+            <div className="relative glass-panel p-12 aspect-square flex flex-col items-center justify-center text-center space-y-8">
+              <div className="w-24 h-24 rounded-full bg-jade/10 flex items-center justify-center">
+                <Compass className="w-12 h-12 text-jade animate-float" />
+              </div>
+              <div className="space-y-4">
+                <h3 className="text-2xl font-bold text-white serif">天人相应 · 气周而复</h3>
+                <p className="text-zinc-500 leading-relaxed font-light">
+                  《三因司天方》云：五运六气，乃天地阴阳运行升降之常道也。凡不合于政令德化者，则为变眚，皆能病人。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <footer className="text-center py-12 border-t border-white/5">
-          <p className="text-zinc-600 text-[10px] tracking-[0.3em] uppercase">
-            © 2026 五运六气健康分析系统 · 仅供学术研究参考
+      {/* Results Section */}
+      <AnimatePresence>
+        {hasCalculated && calcData && (
+          <motion.section 
+            id="results-section"
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="py-32 px-6 bg-ink/50 border-y border-white/[0.03]"
+          >
+            <div className="max-w-7xl mx-auto space-y-24">
+              <div className="grid lg:grid-cols-3 gap-12">
+                <div className="lg:col-span-1 space-y-8">
+                  <SectionHeader 
+                    number="02" 
+                    title="运气概要" 
+                    subtitle="先天底色与当日气场格局"
+                  />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { label: "干支纪年", value: calcData.wylq_summary.ganzhi, color: "text-jade" },
+                      { label: "岁运", value: calcData.wylq_summary.suiyun, color: "text-gold" },
+                      { label: "司天", value: calcData.wylq_summary.sitian, color: "text-orange-400" },
+                      { label: "在泉", value: calcData.wylq_summary.zaiquan, color: "text-purple-400" }
+                    ].map((item, i) => (
+                      <div key={i} className="glass-panel p-6 space-y-2">
+                        <span className="text-[10px] text-zinc-500 uppercase tracking-widest">{item.label}</span>
+                        <p className={cn("text-lg font-bold serif", item.color)}>{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="glass-panel p-6 border-l-2 border-l-jade">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Shield className="w-4 h-4 text-jade" />
+                        <span className="text-xs text-zinc-400 uppercase tracking-widest">当日五运格局</span>
+                      </div>
+                      <p className="text-zinc-300 leading-relaxed">{calcData.wylq_summary.daily_fortune}</p>
+                    </div>
+                    <div className="glass-panel p-6 border-l-2 border-l-gold">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles className="w-4 h-4 text-gold" />
+                        <span className="text-xs text-zinc-400 uppercase tracking-widest">当日六气格局</span>
+                      </div>
+                      <p className="text-zinc-300 leading-relaxed">{calcData.wylq_summary.daily_qi}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-2 space-y-8">
+                  <div className="flex justify-between items-end mb-8">
+                    <SectionHeader 
+                      number="03" 
+                      title="AHI 动态趋势" 
+                      subtitle="0-60岁全生命周期健康指数 K 线分析"
+                    />
+                    <div className="flex items-center gap-4 mb-12">
+                      <div className="px-4 py-2 rounded-xl bg-white/[0.03] border border-white/10">
+                        <span className="text-[10px] text-zinc-500 uppercase mr-2">先天基准</span>
+                        <span className="text-gold font-mono font-bold">{calcData.base_score.toFixed(1)}</span>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          if (chartRef.current) {
+                            const instance = chartRef.current.getEchartsInstance();
+                            const url = instance.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#050505' });
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `AHI_Chart_${year}.png`;
+                            link.click();
+                          }
+                        }}
+                        className="p-3 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] transition-all"
+                      >
+                        <Download className="w-5 h-5 text-zinc-400" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="glass-panel p-8 h-[500px] relative">
+                    <ReactECharts 
+                      ref={chartRef}
+                      option={getChartOption()} 
+                      style={{ height: '100%', width: '100%' }}
+                      theme="dark"
+                    />
+                    
+                    <div className="absolute bottom-8 left-8 flex items-center gap-8 text-[10px] text-zinc-600 uppercase tracking-[0.2em]">
+                      <div className="flex items-center gap-2"><div className="w-2 h-2 bg-jade rounded-full"></div> 气场升华</div>
+                      <div className="flex items-center gap-2"><div className="w-2 h-2 bg-[#FF4444] rounded-full"></div> 气场损耗</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Report Trigger */}
+              <div className="flex flex-col items-center justify-center py-24 text-center space-y-8 border-t border-white/5">
+                <div className="w-20 h-20 rounded-full bg-gold/5 flex items-center justify-center">
+                  <FileText className="w-10 h-10 text-gold/40" />
+                </div>
+                <div className="max-w-xl space-y-4">
+                  <h3 className="text-3xl font-bold text-white serif">深度生命周期洞察</h3>
+                  <p className="text-zinc-500 font-light leading-relaxed">
+                    系统已准备好为您生成一份深度融合古法智慧与现代审美的全生命周期健康洞察报告。
+                  </p>
+                </div>
+                <button 
+                  onClick={handleGenerateReport}
+                  disabled={isGeneratingReport}
+                  className="btn-primary bg-gold hover:bg-gold/90 hover:shadow-[0_0_20px_rgba(212,175,85,0.3)] min-w-[240px]"
+                >
+                  {isGeneratingReport ? (
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>正在构建模型...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <Activity className="w-5 h-5" />
+                      <span>生成专属报告</span>
+                    </div>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      {/* Report Section */}
+      <AnimatePresence>
+        {hasGeneratedReport && report && (
+          <motion.section 
+            id="report-section"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="py-32 px-6 bg-obsidian"
+          >
+            <div className="max-w-4xl mx-auto">
+              <div className="flex justify-between items-center mb-24">
+                <div className="space-y-2">
+                  <span className="text-[10px] text-jade tracking-[0.5em] uppercase">Confidential Report</span>
+                  <h2 className="text-4xl font-bold text-white serif">全生命周期健康洞察</h2>
+                </div>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(report);
+                    alert("报告已复制");
+                  }}
+                  className="flex items-center gap-2 text-xs text-zinc-500 hover:text-gold transition-colors"
+                >
+                  <Copy className="w-4 h-4" />
+                  <span>COPY REPORT</span>
+                </button>
+              </div>
+
+              <div className="relative">
+                <div className="absolute -left-12 top-0 bottom-0 w-px bg-gradient-to-b from-jade via-gold to-transparent opacity-20"></div>
+                {renderReportContent(report)}
+              </div>
+
+              <footer className="mt-32 pt-12 border-t border-white/5 text-center">
+                <p className="text-[10px] text-zinc-600 uppercase tracking-[0.5em]">
+                  End of Analysis // © 2026 五运六气健康分析系统
+                </p>
+              </footer>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      {/* Footer */}
+      <footer className="py-24 px-6 border-t border-white/5 bg-ink/30">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-jade/10 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-jade" />
+            </div>
+            <span className="text-lg font-bold text-white serif tracking-widest uppercase">AHI System</span>
+          </div>
+          
+          <p className="text-zinc-600 text-[10px] tracking-[0.3em] uppercase text-center md:text-right">
+            基于传统中医运气学说 · 仅供学术研究参考 · 不作为医疗诊断依据
           </p>
-        </footer>
-      </div>
+        </div>
+      </footer>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
-        .glass-card {
-          background: #141417;
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          border-radius: 1.5rem;
-          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        html {
+          scroll-behavior: smooth;
         }
-        .serif {
-          font-family: 'Noto Serif SC', serif;
+        body {
+          overflow-x: hidden;
+        }
+        select {
+          background-image: none !important;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+          width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+          background: #050505;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: #1a1a1a;
+          border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: #2a2a2a;
         }
       `}</style>
     </div>
