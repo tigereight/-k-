@@ -77,7 +77,7 @@ const ModuleWrapper = ({
           <h2 className="text-xl font-semibold text-white tracking-tight serif">{title}</h2>
         </div>
         
-        <div className="relative">
+        <div className={cn("relative transition-all duration-500", isWaiting && "min-h-[240px]")}>
           {children}
           
           <AnimatePresence>
@@ -86,12 +86,12 @@ const ModuleWrapper = ({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-sm rounded-xl border border-dashed border-white/10"
+                className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950/60 backdrop-blur-[2px] rounded-xl border border-dashed border-white/5"
               >
-                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                  <Clock className="w-8 h-8 text-white/20" />
+                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                  <Clock className="w-6 h-6 text-white/20" />
                 </div>
-                <p className="text-zinc-500 text-lg serif">{waitingText}</p>
+                <p className="text-zinc-500 text-base serif tracking-wide">{waitingText}</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -376,7 +376,7 @@ export default function App() {
               <button 
                 type="submit" 
                 disabled={isCalculating}
-                className="w-full py-4 px-6 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white transition-all flex items-center justify-center space-x-2 shadow-lg shadow-emerald-900/20"
+                className="w-full py-4 px-6 rounded-xl font-bold bg-emerald-800 hover:bg-emerald-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white transition-all flex items-center justify-center space-x-2 shadow-lg shadow-emerald-900/20"
               >
                 {isCalculating ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
