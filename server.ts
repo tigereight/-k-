@@ -645,9 +645,11 @@ ${klineText}
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static("dist"));
+    // Production: Serve static files from dist
+    const distPath = path.resolve(__dirname, "dist");
+    app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path.resolve(__dirname, "dist", "index.html"));
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
