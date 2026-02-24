@@ -4,13 +4,14 @@ import path from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
 import "dotenv/config";
+import { createServer as createViteServer } from "vite";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
-app.use(express.json());
-app.use(express.static("public"));
+async function startServer() {
+  const app = express();
+  app.use(express.json());
 
 // ==========================================
 // 1. 基础定义与枚举 (Basic Definitions)
@@ -635,7 +636,24 @@ ${klineText}
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(Number(PORT), "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
-});
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    app.use(express.static("dist"));
+    app.get("*", (req, res) => {
+      res.sendFile(path.resolve(__dirname, "dist", "index.html"));
+    });
+  }
+
+  const PORT = process.env.PORT || 3000;
+  app.listen(Number(PORT), "0.0.0.0", () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+startServer();
