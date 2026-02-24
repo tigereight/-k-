@@ -153,10 +153,9 @@ export default function App() {
       setTimeout(() => {
         document.getElementById('module-02')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Calculation error:", error);
-      const errorMsg = error.response?.data?.error || error.message || "未知错误";
-      alert(`[V2] 计算失败: ${errorMsg}\n请检查网络连接或输入数据。`);
+      alert("计算失败，请检查网络连接或输入数据。");
     } finally {
       setIsCalculating(false);
     }
