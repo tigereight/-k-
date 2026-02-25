@@ -19,6 +19,7 @@ import {
   History,
   User,
   LogOut,
+  Trash2,
   X,
   Mail,
   Lock
@@ -51,6 +52,7 @@ interface CalcResponse {
   wylq_summary: WylqSummary;
   kline_data: KlinePoint[];
   base_score: number;
+  historyId?: number | null;
 }
 
 interface ReportResponse {
@@ -101,6 +103,7 @@ export default function App() {
   
   const [hasCalculated, setHasCalculated] = useState(false);
   const [hasGeneratedReport, setHasGeneratedReport] = useState(false);
+  const [currentHistoryId, setCurrentHistoryId] = useState<number | null>(null);
 
   const [activeTab, setActiveTab] = useState<'home' | 'history' | 'profile'>('home');
   const [user, setUser] = useState<UserInfo>({ loggedIn: false });
@@ -174,11 +177,16 @@ export default function App() {
     setHasCalculated(false);
     setHasGeneratedReport(false);
     setReport(null);
+    setCurrentHistoryId(null);
 
     try {
       const response = await axios.post<CalcResponse>('/api/calculate', { year, month, day });
       setCalcData(response.data);
       setHasCalculated(true);
+      if (response.data.historyId) {
+        setCurrentHistoryId(response.data.historyId);
+        if (user.loggedIn) loadHistory();
+      }
       
       setTimeout(() => {
         document.getElementById('results-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -198,7 +206,8 @@ export default function App() {
     try {
       const response = await axios.post<ReportResponse>('/api/generate-report', {
         wylq_summary: calcData.wylq_summary,
-        kline_data: calcData.kline_data
+        kline_data: calcData.kline_data,
+        historyId: currentHistoryId
       });
       setReport(response.data.report);
       setHasGeneratedReport(true);
@@ -308,6 +317,18 @@ export default function App() {
         })}
       </div>
     );
+  };
+
+  const deleteHistory = async (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("确定要删除这条记录吗？")) return;
+    try {
+      await axios.delete(`/api/history/${id}`);
+      setHistory(prev => prev.filter(item => item.id !== id));
+    } catch (err) {
+      console.error("Delete failed", err);
+      alert("删除失败");
+    }
   };
 
   const years = Array.from({ length: 2026 - 1900 + 1 }, (_, i) => 2026 - i);
@@ -773,8 +794,10 @@ export default function App() {
                       setCalcData({
                         wylq_summary: item.wylq_data.wylq_summary,
                         kline_data: item.wylq_data.kline_data,
-                        base_score: item.base_score
+                        base_score: item.base_score,
+                        historyId: item.id
                       });
+                      setCurrentHistoryId(item.id);
                       setReport(item.report_text);
                       setHasCalculated(true);
                       setHasGeneratedReport(!!item.report_text);
@@ -783,7 +806,7 @@ export default function App() {
                         document.getElementById('results-section')?.scrollIntoView({ behavior: 'smooth' });
                       }, 100);
                     }}
-                    className="glass-panel p-6 flex items-center justify-between cursor-pointer hover:bg-white/[0.05] transition-all group"
+                    className="glass-panel p-6 flex items-center justify-between cursor-pointer hover:bg-white/[0.05] transition-all group relative"
                   >
                     <div className="flex items-center gap-6">
                       <div className="w-12 h-12 rounded-full bg-jade/10 flex items-center justify-center">
@@ -801,6 +824,12 @@ export default function App() {
                         <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">AHI 基准</p>
                         <p className="text-gold font-mono font-bold">{item.base_score.toFixed(1)}</p>
                       </div>
+                      <button 
+                        onClick={(e) => deleteHistory(item.id, e)}
+                        className="p-2 text-zinc-700 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                       <ArrowRight className="w-5 h-5 text-zinc-700 group-hover:text-jade transition-colors" />
                     </div>
                   </motion.div>

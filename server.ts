@@ -64,6 +64,16 @@ async function startServer() {
     }
   };
 
+app.delete("/api/history/:id", isAuthenticated, (req, res) => {
+  const { id } = req.params;
+  const result = db.prepare("DELETE FROM history WHERE id = ? AND user_id = ?").run(id, req.session.userId);
+  if (result.changes > 0) {
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: "记录不存在" });
+  }
+});
+
 // ==========================================
 // 1. 基础定义与枚举 (Basic Definitions)
 // ==========================================
@@ -658,14 +668,16 @@ app.post("/api/calculate", (req, res) => {
     }
 
     // Save to history if logged in
+    let historyId = null;
     if (req.session.userId) {
       const birthDateStr = `${year}-${month}-${day}`;
       const wylqDataStr = JSON.stringify({ wylq_summary, kline_data });
-      db.prepare("INSERT INTO history (user_id, birth_date, wylq_data, base_score) VALUES (?, ?, ?, ?)")
+      const result = db.prepare("INSERT INTO history (user_id, birth_date, wylq_data, base_score) VALUES (?, ?, ?, ?)")
         .run(req.session.userId, birthDateStr, wylqDataStr, engine.baseScore);
+      historyId = result.lastInsertRowid;
     }
 
-    res.json({ wylq_summary, kline_data, base_score: engine.baseScore });
+    res.json({ wylq_summary, kline_data, base_score: engine.baseScore, historyId });
   } catch (error: any) {
     console.error(error);
     res.status(500).json({ error: error.message });
@@ -704,7 +716,7 @@ const SANYIN_KNOWLEDGE = `
 
 app.post("/api/generate-report", async (req, res) => {
   try {
-    const { wylq_summary, kline_data } = req.body;
+    const { wylq_summary, kline_data, historyId } = req.body;
     const apiKey = process.env.DASHSCOPE_API_KEY || process.env.API_KEY;
 
     if (!apiKey) {
@@ -765,10 +777,10 @@ ${klineText}
     if (response.data && response.data.output && response.data.output.choices) {
       const report = response.data.output.choices[0].message.content;
       
-      // Update latest history entry with report if logged in
-      if (req.session.userId) {
-        db.prepare("UPDATE history SET report_text = ? WHERE user_id = ? AND id = (SELECT MAX(id) FROM history WHERE user_id = ?)")
-          .run(report, req.session.userId, req.session.userId);
+      // Update specific history entry with report if historyId is provided
+      if (req.session.userId && historyId) {
+        db.prepare("UPDATE history SET report_text = ? WHERE id = ? AND user_id = ?")
+          .run(report, historyId, req.session.userId);
       }
 
       res.json({ report });
