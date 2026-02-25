@@ -14,7 +14,14 @@ import {
   ArrowRight,
   Sparkles,
   Shield,
-  Compass
+  Compass,
+  Home,
+  History,
+  User,
+  LogOut,
+  X,
+  Mail,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -50,6 +57,23 @@ interface ReportResponse {
   report: string;
 }
 
+interface UserInfo {
+  loggedIn: boolean;
+  email?: string;
+}
+
+interface HistoryItem {
+  id: number;
+  birth_date: string;
+  wylq_data: {
+    wylq_summary: WylqSummary;
+    kline_data: KlinePoint[];
+  };
+  report_text: string | null;
+  base_score: number;
+  created_at: string;
+}
+
 // --- Components ---
 
 const SectionHeader = ({ title, subtitle, number }: { title: string; subtitle?: string; number: string }) => (
@@ -78,6 +102,16 @@ export default function App() {
   const [hasCalculated, setHasCalculated] = useState(false);
   const [hasGeneratedReport, setHasGeneratedReport] = useState(false);
 
+  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'profile'>('home');
+  const [user, setUser] = useState<UserInfo>({ loggedIn: false });
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
   const chartRef = useRef<any>(null);
 
   // Initialize days
@@ -86,6 +120,53 @@ export default function App() {
     setDaysInMonth(days);
     if (day > days) setDay(days);
   }, [year, month]);
+
+  // Check auth status
+  useEffect(() => {
+    axios.get<UserInfo>('/api/me').then(res => setUser(res.data));
+  }, []);
+
+  // Load history when tab changes
+  useEffect(() => {
+    if (activeTab === 'history' && user.loggedIn) {
+      loadHistory();
+    }
+  }, [activeTab, user.loggedIn]);
+
+  const loadHistory = async () => {
+    setIsLoadingHistory(true);
+    try {
+      const res = await axios.get<HistoryItem[]>('/api/history');
+      setHistory(res.data);
+    } catch (err) {
+      console.error("Failed to load history", err);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    try {
+      const endpoint = authMode === 'login' ? '/api/login' : '/api/register';
+      const res = await axios.post(endpoint, { email, password });
+      if (res.data.success) {
+        setUser({ loggedIn: true, email: email });
+        setShowAuthModal(false);
+        setEmail('');
+        setPassword('');
+      }
+    } catch (err: any) {
+      setAuthError(err.response?.data?.error || "操作失败");
+    }
+  };
+
+  const handleLogout = async () => {
+    await axios.post('/api/logout');
+    setUser({ loggedIn: false });
+    setActiveTab('home');
+  };
 
   const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,9 +315,98 @@ export default function App() {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
-    <div className="min-h-screen bg-obsidian selection:bg-jade/30">
-      {/* Hero Section */}
-      <section className="relative h-screen flex flex-col items-center justify-center overflow-hidden px-6">
+    <div className="min-h-screen bg-obsidian selection:bg-jade/30 pb-24">
+      {/* Auth Modal */}
+      <AnimatePresence>
+        {showAuthModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-obsidian/80 backdrop-blur-md"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="glass-panel w-full max-w-md p-8 relative"
+            >
+              <button 
+                onClick={() => setShowAuthModal(false)}
+                className="absolute top-4 right-4 p-2 text-zinc-500 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-bold text-white serif mb-2">
+                  {authMode === 'login' ? '欢迎回来' : '开启探索'}
+                </h3>
+                <p className="text-zinc-500 text-sm">
+                  {authMode === 'login' ? '登录以同步您的健康历史' : '注册以保存您的 AHI 演算记录'}
+                </p>
+              </div>
+
+              <form onSubmit={handleAuth} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] text-zinc-500 uppercase tracking-widest ml-1">电子邮箱</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                    <input 
+                      type="email" 
+                      required
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-jade/50 transition-all"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] text-zinc-500 uppercase tracking-widest ml-1">密码</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                    <input 
+                      type="password" 
+                      required
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-jade/50 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {authError && <p className="text-red-400 text-xs text-center">{authError}</p>}
+
+                <button type="submit" className="btn-primary w-full mt-4">
+                  {authMode === 'login' ? '立即登录' : '创建账户'}
+                </button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <button 
+                  onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+                  className="text-xs text-zinc-500 hover:text-jade transition-colors"
+                >
+                  {authMode === 'login' ? '还没有账户？立即注册' : '已有账户？返回登录'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content Sections */}
+      <AnimatePresence mode="wait">
+        {activeTab === 'home' && (
+          <motion.div 
+            key="home"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {/* Hero Section */}
+            <section className="relative h-screen flex flex-col items-center justify-center overflow-hidden px-6">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,168,107,0.05),transparent_70%)]"></div>
         <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-jade/10 rounded-full blur-[120px] animate-pulse"></div>
@@ -361,6 +531,25 @@ export default function App() {
             className="py-32 px-6 bg-ink/50 border-y border-white/[0.03]"
           >
             <div className="max-w-7xl mx-auto space-y-24">
+              {!user.loggedIn && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="glass-panel p-4 border-jade/20 bg-jade/5 flex items-center justify-between gap-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="w-4 h-4 text-jade" />
+                    <p className="text-xs text-jade/80">登录后可永久保存您的演算记录与 AI 报告</p>
+                  </div>
+                  <button 
+                    onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
+                    className="text-xs font-bold text-jade hover:underline"
+                  >
+                    立即登录
+                  </button>
+                </motion.div>
+              )}
+              
               <div className="grid lg:grid-cols-3 gap-12">
                 <div className="lg:col-span-1 space-y-8">
                   <SectionHeader 
@@ -523,7 +712,196 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Footer */}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* History Section */}
+      <AnimatePresence>
+        {activeTab === 'history' && (
+          <motion.section 
+            key="history"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="py-32 px-6 max-w-4xl mx-auto"
+          >
+            <SectionHeader 
+              number="05" 
+              title="历史演算" 
+              subtitle="回顾您的生命周期健康趋势记录"
+            />
+
+            {!user.loggedIn ? (
+              <div className="glass-panel p-12 text-center space-y-6">
+                <div className="w-16 h-16 rounded-full bg-jade/5 flex items-center justify-center mx-auto">
+                  <Shield className="w-8 h-8 text-jade/30" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-white serif">登录以查看历史</h3>
+                  <p className="text-zinc-500 text-sm">您的测算记录将安全地存储在云端，随时随地回顾。</p>
+                </div>
+                <button 
+                  onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
+                  className="btn-primary"
+                >
+                  立即登录
+                </button>
+              </div>
+            ) : isLoadingHistory ? (
+              <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                <Loader2 className="w-8 h-8 text-jade animate-spin" />
+                <p className="text-zinc-500 text-sm">正在调取云端档案...</p>
+              </div>
+            ) : history.length === 0 ? (
+              <div className="glass-panel p-12 text-center space-y-4">
+                <p className="text-zinc-500 serif">暂无演算记录</p>
+                <button 
+                  onClick={() => setActiveTab('home')}
+                  className="text-jade text-sm hover:underline"
+                >
+                  去开启第一次演算
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {history.map((item) => (
+                  <motion.div 
+                    key={item.id}
+                    whileHover={{ scale: 1.01 }}
+                    onClick={() => {
+                      setCalcData({
+                        wylq_summary: item.wylq_data.wylq_summary,
+                        kline_data: item.wylq_data.kline_data,
+                        base_score: item.base_score
+                      });
+                      setReport(item.report_text);
+                      setHasCalculated(true);
+                      setHasGeneratedReport(!!item.report_text);
+                      setActiveTab('home');
+                      setTimeout(() => {
+                        document.getElementById('results-section')?.scrollIntoView({ behavior: 'smooth' });
+                      }, 100);
+                    }}
+                    className="glass-panel p-6 flex items-center justify-between cursor-pointer hover:bg-white/[0.05] transition-all group"
+                  >
+                    <div className="flex items-center gap-6">
+                      <div className="w-12 h-12 rounded-full bg-jade/10 flex items-center justify-center">
+                        <Calendar className="w-5 h-5 text-jade" />
+                      </div>
+                      <div>
+                        <p className="text-white font-bold serif">{item.birth_date}</p>
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
+                          {new Date(item.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-8">
+                      <div className="text-right">
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">AHI 基准</p>
+                        <p className="text-gold font-mono font-bold">{item.base_score.toFixed(1)}</p>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-zinc-700 group-hover:text-jade transition-colors" />
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      {/* Profile Section */}
+      <AnimatePresence>
+        {activeTab === 'profile' && (
+          <motion.section 
+            key="profile"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="py-32 px-6 max-w-2xl mx-auto"
+          >
+            <SectionHeader 
+              number="06" 
+              title="个人中心" 
+              subtitle="管理您的账户与偏好设置"
+            />
+
+            {!user.loggedIn ? (
+              <div className="glass-panel p-12 text-center space-y-6">
+                <div className="w-16 h-16 rounded-full bg-gold/5 flex items-center justify-center mx-auto">
+                  <User className="w-8 h-8 text-gold/30" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-white serif">尚未登录</h3>
+                  <p className="text-zinc-500 text-sm">登录以解锁更多高级功能与个性化建议。</p>
+                </div>
+                <button 
+                  onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
+                  className="btn-primary bg-gold hover:bg-gold/90"
+                >
+                  立即登录
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="glass-panel p-8 flex items-center gap-6">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-jade to-gold flex items-center justify-center text-2xl font-bold text-white serif">
+                    {user.email?.[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white serif">{user.email}</h3>
+                    <p className="text-zinc-500 text-xs mt-1 uppercase tracking-widest">Premium Member</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4">
+                  <button className="glass-panel p-6 flex items-center justify-between hover:bg-white/[0.05] transition-all text-left">
+                    <div className="flex items-center gap-4">
+                      <Shield className="w-5 h-5 text-zinc-500" />
+                      <span className="text-zinc-300">账户安全</span>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-zinc-700 -rotate-90" />
+                  </button>
+                  <button 
+                    onClick={handleLogout}
+                    className="glass-panel p-6 flex items-center justify-between hover:bg-red-500/10 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <LogOut className="w-5 h-5 text-red-400" />
+                      <span className="text-red-400">退出登录</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] w-[calc(100%-3rem)] md:w-auto">
+        <div className="glass-panel px-4 py-3 flex items-center justify-around md:justify-center md:gap-12 backdrop-blur-2xl bg-obsidian/40 border-white/10 shadow-2xl">
+          {[
+            { id: 'home', icon: Home, label: '首页' },
+            { id: 'history', icon: History, label: '历史' },
+            { id: 'profile', icon: User, label: '我的' }
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id as any)}
+              className={cn(
+                "flex flex-col items-center gap-1 px-4 py-1 rounded-2xl transition-all duration-300",
+                activeTab === item.id ? "text-jade scale-110" : "text-zinc-500 hover:text-zinc-300"
+              )}
+            >
+              <item.icon className={cn("w-5 h-5", activeTab === item.id && "animate-pulse")} />
+              <span className="text-[10px] font-medium tracking-tighter">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
       <footer className="py-24 px-6 border-t border-white/5 bg-ink/30">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-4">
