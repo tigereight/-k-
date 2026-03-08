@@ -25,7 +25,8 @@ import {
   Mail,
   Lock,
   HeartPulse,
-  ShieldCheck
+  ShieldCheck,
+  Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -312,6 +313,63 @@ export default function App() {
 
   const [isGeneratingHealthReport, setIsGeneratingHealthReport] = useState(false);
   const [healthReport, setHealthReport] = useState<string | null>(null);
+  const [riskScores, setRiskScores] = useState<any>({
+    structuralVulnerability: 65,
+    energyDeficit: 45,
+    temporalPressure: 70,
+    overallRisk: 60
+  });
+
+  const formatAstrolabeForAI = (data: any) => {
+    if (!data) return null;
+    
+    return {
+      basicInfo: {
+        gender: data.gender,
+        solarDate: data.solarDate,
+        lunarDate: data.lunarDate,
+        chineseDate: data.chineseDate,
+        zodiac: data.zodiac,
+        fiveElements: data.fiveElements,
+        fateResonance: data.fateResonance,
+        lifePalaceBranch: data.lifePalaceBranch,
+        bodyPalaceBranch: data.bodyPalaceBranch,
+      },
+      palaces: (data.palaces || []).map((p: any) => ({
+        name: p.name,
+        earthlyBranch: p.earthlyBranch,
+        heavenlyStem: p.heavenlyStem,
+        isLifePalace: p.isLifePalace,
+        isBodyPalace: p.isBodyPalace,
+        majorStars: (p.majorStars || []).map((s: any) => ({ name: s.name, type: s.type, brightness: s.brightness })),
+        minorStars: (p.minorStars || []).map((s: any) => ({ name: s.name, type: s.type, brightness: s.brightness })),
+        adjectiveStars: (p.adjectiveStars || []).map((s: any) => ({ name: s.name, type: s.type })),
+        chuanqiStars: (p.chuanqiStars || []).map((s: any) => ({ name: s.name })),
+        zodiacStars: (p.zodiacStars || []).map((s: any) => ({ name: s.name })),
+        transformations: [
+          p.isYearlyHualu && "流年化禄",
+          p.isYearlyHuaquan && "流年化权",
+          p.isYearlyHuake && "流年化科",
+          p.isYearlyHuaji && "流年化忌",
+          p.isDecadalHualu && "大限化禄",
+          p.isDecadalHuaquan && "大限化权",
+          p.isDecadalHuake && "大限化科",
+          p.isDecadalHuaji && "大限化忌",
+        ].filter(Boolean),
+      })),
+      decadal: data.decadal ? {
+        index: data.decadal.index,
+        heavenlyStem: data.decadal.heavenlyStem,
+        earthlyBranch: data.decadal.earthlyBranch,
+        range: data.decadal.range,
+      } : null,
+      yearly: data.yearly ? {
+        index: data.yearly.index,
+        heavenlyStem: data.yearly.heavenlyStem,
+        earthlyBranch: data.yearly.earthlyBranch,
+      } : null
+    };
+  };
 
   const generateHealthReport = async () => {
     if (!astrolabeData) return;
@@ -319,19 +377,34 @@ export default function App() {
     setHealthReport(null);
 
     try {
+      const formattedData = formatAstrolabeForAI(astrolabeData);
       const response = await axios.post('/api/generate-health-report', {
-        astrolabeData
+        astrolabeData: formattedData
       });
 
-      setHealthReport(response.data.report || "未能生成报告，请稍后再试。");
+      if (response.data.riskScores) {
+        setRiskScores(response.data.riskScores);
+      }
+      
+      let rawReport = response.data.report || "未能生成报告，请稍后再试。";
+      // Clean up potential double escaping issues from AI response
+      const cleanedReport = rawReport
+        .replace(/\\\\n/g, '\n')
+        .replace(/\\n/g, '\n')
+        .replace(/\\\\r/g, '')
+        .replace(/\\r/g, '')
+        .replace(/\\\\/g, '\\');
+        
+      setHealthReport(cleanedReport);
       
       // Scroll to report
       setTimeout(() => {
         document.getElementById('health-report-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Health report generation failed", err);
-      setHealthReport("生成报告时发生错误，请检查网络连接或稍后再试。");
+      const errorMsg = err.response?.data?.error || err.message || "未知错误";
+      setHealthReport(`生成报告时发生错误: ${errorMsg}\n\n请检查网络连接或稍后再试。`);
     } finally {
       setIsGeneratingHealthReport(false);
     }
@@ -1128,59 +1201,129 @@ export default function App() {
                       initial={{ opacity: 0, y: 40 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -40 }}
-                      className="max-w-4xl mx-auto"
+                      className="max-w-5xl mx-auto"
                     >
-                      <div className="bg-white text-zinc-900 p-8 md:p-20 shadow-[0_30px_100px_rgba(0,0,0,0.5)] relative overflow-hidden rounded-sm border-t-[12px] border-jade">
-                        {/* Report Header Decor */}
+                      <div className="glass-panel p-8 md:p-16 border-white/10 bg-black/40 shadow-[0_40px_120px_rgba(0,0,0,0.8)] relative overflow-hidden">
+                        {/* Financial Report Header Decor */}
                         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
-                          <HeartPulse className="w-64 h-64 text-jade" />
+                          <Activity className="w-64 h-64 text-gold" />
                         </div>
                         
-                        <div className="flex justify-between items-start mb-16 border-b-2 border-zinc-100 pb-8">
-                          <div className="space-y-2">
-                            <h3 className="text-jade font-black tracking-[0.2em] uppercase text-sm">Health Matrix Report</h3>
-                            <p className="text-zinc-400 text-xs font-mono">ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
+                        <div className="flex flex-col md:flex-row justify-between items-start mb-12 border-b border-white/10 pb-8 gap-6 relative">
+                          {/* Decorative Seal */}
+                          <div className="absolute -top-4 left-1/2 -translate-x-1/2 opacity-10 pointer-events-none">
+                            <div className="w-24 h-24 border-2 border-gold rounded-full flex items-center justify-center rotate-12">
+                              <div className="w-20 h-20 border border-gold rounded-full flex items-center justify-center">
+                                <span className="text-[8px] text-gold font-black uppercase tracking-tighter text-center">Matrix<br/>Verified<br/>Actuary</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-zinc-900 font-bold serif text-xl">紫微全息健康档案</p>
-                            <p className="text-zinc-400 text-xs">{new Date().toLocaleDateString()}</p>
+                          
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-6 bg-gold" />
+                              <h3 className="text-gold font-black tracking-[0.3em] uppercase text-sm">Asset Quality Report</h3>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-zinc-500 text-[9px] font-mono uppercase tracking-widest">Serial: {Math.random().toString(36).substr(2, 12).toUpperCase()}</p>
+                              <p className="text-zinc-500 text-[9px] font-mono uppercase tracking-widest">Classification: Strictly Confidential</p>
+                              <p className="text-zinc-500 text-[9px] font-mono uppercase tracking-widest">Methodology: Matrix Energy Actuarial v4.2</p>
+                            </div>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <p className="text-white font-bold text-2xl tracking-tight leading-tight" style={{ fontFamily: "'Cormorant Garamond', serif" }}>生命资产质量深度评估报告</p>
+                            <div className="flex items-center justify-end gap-3 text-zinc-500 text-[9px] font-mono uppercase tracking-widest">
+                              <span className="text-gold/60">Matrix Analysis</span>
+                              <span className="w-1 h-1 bg-zinc-700 rounded-full" />
+                              <span>{new Date().toLocaleDateString()}</span>
+                              <span className="w-1 h-1 bg-zinc-700 rounded-full" />
+                              <span>{new Date().toLocaleTimeString()}</span>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="markdown-body prose prose-zinc max-w-none 
-                          prose-headings:serif prose-headings:text-zinc-900 prose-headings:font-bold
-                          prose-p:text-zinc-700 prose-p:leading-relaxed prose-p:text-justify
-                          prose-strong:text-jade prose-strong:font-bold
-                          prose-blockquote:border-l-4 prose-blockquote:border-jade prose-blockquote:bg-jade/5 prose-blockquote:py-2 prose-blockquote:px-6 prose-blockquote:italic
-                        ">
-                          <Markdown>{healthReport}</Markdown>
-                        </div>
-                        
-                        <div className="mt-20 pt-10 border-t-2 border-zinc-100 flex flex-col md:flex-row justify-between items-center gap-8">
-                          <div className="flex items-center gap-6">
-                            <div className="w-16 h-16 rounded-full bg-jade/10 flex items-center justify-center border border-jade/20">
-                              <ShieldCheck className="w-8 h-8 text-jade" />
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
+                          <div className="lg:col-span-3">
+                            <div className="markdown-body custom-report-style">
+                              <Markdown>{healthReport}</Markdown>
                             </div>
-                            <div className="space-y-1">
-                              <p className="text-zinc-900 font-black text-sm uppercase tracking-wider">Expert Verified Analysis</p>
-                              <p className="text-zinc-400 text-[10px] leading-tight max-w-[200px]">
-                                本报告基于紫微斗数星盘能量矩阵，结合中医经络学说深度生成。
+                          </div>
+                          
+                          <div className="space-y-8">
+                            <div className="p-6 border border-white/5 bg-white/5 rounded-sm space-y-4">
+                              <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest border-b border-white/5 pb-2">Risk Rating</p>
+                              <div className="flex items-end gap-2">
+                                <span className="text-4xl font-black text-white">
+                                  {riskScores.overallRisk > 80 ? 'AAA' : 
+                                   riskScores.overallRisk > 60 ? 'AA+' : 
+                                   riskScores.overallRisk > 40 ? 'A-' : 'BBB'}
+                                </span>
+                                <span className="text-xs text-zinc-600 mb-1">
+                                  {riskScores.overallRisk > 70 ? 'Stable' : 'Volatile'}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-zinc-500 leading-relaxed">
+                                基于全息能量矩阵精算，该生命资产结构在当前周期内表现出{riskScores.overallRisk > 60 ? '较强的韧性' : '一定的波动性'}，局部风险敞口{riskScores.energyDeficit > 50 ? '需重点关注' : '受控'}。
+                              </p>
+                            </div>
+
+                            <div className="p-6 border border-white/5 bg-white/5 rounded-sm space-y-4">
+                              <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest border-b border-white/5 pb-2">Analysis Vector</p>
+                              <div className="space-y-3">
+                                {[
+                                  { label: 'Structural Vulnerability', value: riskScores.structuralVulnerability },
+                                  { label: 'Energy Deficit', value: riskScores.energyDeficit },
+                                  { label: 'Temporal Pressure', value: riskScores.temporalPressure }
+                                ].map(item => (
+                                  <div key={item.label} className="space-y-1">
+                                    <div className="flex justify-between text-[10px] uppercase tracking-tighter">
+                                      <span className="text-zinc-400">{item.label}</span>
+                                      <span className="text-zinc-200">{item.value}%</span>
+                                    </div>
+                                    <div className="h-1 bg-white/5 w-full overflow-hidden">
+                                      <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${item.value}%` }}
+                                        className="h-full bg-gradient-to-r from-zinc-700 to-zinc-400" 
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="p-6 border border-gold/20 bg-gold/5 rounded-sm">
+                              <div className="flex items-center gap-3 mb-4">
+                                <ShieldCheck className="w-5 h-5 text-gold" />
+                                <p className="text-[10px] text-gold font-bold uppercase tracking-widest">Actuary Verified</p>
+                              </div>
+                              <p className="text-[10px] text-zinc-400 leading-relaxed">
+                                本报告由全息能量精算系统深度生成，已通过时空维度压力测试验证。
                               </p>
                             </div>
                           </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <div className="flex gap-2">
-                              {[1,2,3].map(i => <div key={i} className="w-8 h-1 bg-jade/20 rounded-full" />)}
-                            </div>
-                            <p className="text-[10px] text-zinc-300 font-mono uppercase tracking-widest">
-                              Confidential // Health Protocol v2.1
-                            </p>
+                        </div>
+                        
+                        <div className="mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
+                          <div className="flex gap-4">
+                            <button 
+                              onClick={() => window.print()}
+                              className="px-4 py-2 bg-gold/10 border border-gold/20 text-gold text-[10px] font-mono uppercase tracking-widest hover:bg-gold/20 transition-all flex items-center gap-2"
+                            >
+                              <Printer className="w-3 h-3" />
+                              Print Report
+                            </button>
+                            <div className="px-3 py-1 border border-white/10 text-[9px] text-zinc-500 font-mono uppercase tracking-widest flex items-center">Confidential</div>
+                            <div className="px-3 py-1 border border-white/10 text-[9px] text-zinc-500 font-mono uppercase tracking-widest flex items-center">Internal Use Only</div>
                           </div>
+                          <p className="text-[9px] text-zinc-600 font-mono uppercase tracking-widest">
+                            © {new Date().getFullYear()} Matrix Health Actuarial Services // Protocol v3.0
+                          </p>
                         </div>
                         
                         {/* Watermark */}
-                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 opacity-[0.03] pointer-events-none select-none">
-                          <p className="text-8xl font-black whitespace-nowrap rotate-[-15deg]">CONFIDENTIAL REPORT</p>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.02] pointer-events-none select-none">
+                          <p className="text-[12rem] font-black whitespace-nowrap rotate-[-25deg]">ACTUARIAL</p>
                         </div>
                       </div>
                     </motion.div>
@@ -1642,6 +1785,91 @@ export default function App() {
         }
         ::-webkit-scrollbar-thumb:hover {
           background: #2a2a2a;
+        }
+
+        .custom-report-style {
+          font-family: 'Inter', sans-serif;
+          color: rgba(255, 255, 255, 0.65);
+          line-height: 1.6;
+          font-size: 0.825rem;
+        }
+        .custom-report-style h1, 
+        .custom-report-style h2, 
+        .custom-report-style h3 {
+          font-family: 'Playfair Display', serif;
+          color: #f8fafc; /* Slate 50 */
+          margin-top: 1.5rem;
+          margin-bottom: 0.75rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          padding-bottom: 0.25rem;
+          letter-spacing: -0.01em;
+        }
+        .custom-report-style h1 { font-size: 1.4rem; font-weight: 700; color: #D4AF37; border-bottom-color: rgba(212, 175, 55, 0.3); }
+        .custom-report-style h2 { font-size: 1.15rem; font-weight: 600; }
+        .custom-report-style h3 { font-size: 0.95rem; font-weight: 600; border-bottom: none; color: #94a3b8; }
+        
+        .custom-report-style p {
+          margin-bottom: 0.85rem;
+          text-align: justify;
+        }
+        
+        .custom-report-style blockquote {
+          border-left: 2px solid #D4AF37;
+          background: rgba(255, 255, 255, 0.02);
+          padding: 0.85rem 1.15rem;
+          margin: 1.25rem 0;
+          font-style: italic;
+          color: rgba(255, 255, 255, 0.75);
+          font-size: 0.8rem;
+        }
+        
+        .custom-report-style table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 1.25rem 0;
+          font-size: 0.725rem;
+          background: rgba(255, 255, 255, 0.01);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .custom-report-style th {
+          background: rgba(255, 255, 255, 0.03);
+          color: #f8fafc;
+          text-align: left;
+          padding: 0.5rem;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          font-weight: 600;
+        }
+        .custom-report-style td {
+          padding: 0.5rem;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          color: rgba(255, 255, 255, 0.5);
+        }
+        .custom-report-style tr:hover {
+          background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .custom-report-style strong {
+          color: #D4AF37;
+          font-weight: 600;
+        }
+        
+        .custom-report-style ul, .custom-report-style ol {
+          margin-bottom: 0.85rem;
+          padding-left: 1rem;
+        }
+        .custom-report-style li {
+          margin-bottom: 0.35rem;
+          list-style-type: none;
+          position: relative;
+        }
+        .custom-report-style li::before {
+          content: "•";
+          color: #64748b; /* Slate 400 */
+          position: absolute;
+          left: -1rem;
+          font-weight: bold;
         }
       `}</style>
     </div>
