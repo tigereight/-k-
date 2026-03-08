@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
+import { astro } from 'iztro';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -78,7 +79,204 @@ interface HistoryItem {
   created_at: string;
 }
 
+// --- Constants ---
+const TIME_OPTIONS = [
+  "子时 (23:00-01:00)", "丑时 (01:00-03:00)", "寅时 (03:00-05:00)", 
+  "卯时 (05:00-07:00)", "辰时 (07:00-09:00)", "巳时 (09:00-11:00)", 
+  "午时 (11:00-13:00)", "未时 (13:00-15:00)", "申时 (15:00-17:00)", 
+  "酉时 (17:00-19:00)", "戌时 (19:00-21:00)", "亥时 (21:00-23:00)",
+  "未知时辰"
+];
+
 // --- Components ---
+
+const StarMutagenBadge = ({ mutagen }: { mutagen: string }) => {
+  if (!mutagen) return null;
+  const styles: Record<string, string> = {
+    '禄': 'bg-gold/10 text-gold border-gold/20',
+    '权': 'bg-jade/10 text-jade border-jade/20',
+    '科': 'bg-blue-400/10 text-blue-400 border-blue-400/20',
+    '忌': 'bg-red-500/10 text-red-500 border-red-500/20 shadow-[0_0_5px_rgba(239,68,68,0.2)]',
+  };
+  return (
+    <span className={cn(
+      "text-[9px] px-1 rounded border font-bold leading-none py-0.5",
+      styles[mutagen] || "bg-zinc-800 text-zinc-400 border-zinc-700"
+    )}>
+      {mutagen}
+    </span>
+  );
+};
+
+const PalaceCell = ({ palace, isCurrentYear }: { palace: any; isCurrentYear: boolean }) => {
+  const majorStars = palace.majorStars || [];
+  const minorStars = palace.minorStars || [];
+  const adjectiveStars = palace.adjectiveStars || [];
+  
+  return (
+    <motion.div
+      variants={{
+        hidden: { opacity: 0, scale: 0.98 },
+        visible: { opacity: 1, scale: 1 }
+      }}
+      whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+      className={cn(
+        "glass-panel p-1.5 md:p-2 flex flex-col h-full transition-all border-white/10 relative group overflow-hidden bg-zinc-900/60",
+        isCurrentYear && "border-jade/40 ring-1 ring-jade/20 bg-jade/[0.02]",
+        palace.isBodyPalace && "bg-jade/[0.04]"
+      )}
+    >
+      {/* Top Section: Stars */}
+      <div className="flex justify-between gap-0.5 flex-1 min-h-0">
+        {/* Left: Major Stars */}
+        <div className="flex flex-col gap-0">
+          {majorStars.map((star: any, idx: number) => (
+            <div key={idx} className="flex items-baseline gap-0.5">
+              <span className={cn(
+                "text-[12px] md:text-[13px] font-bold serif leading-tight",
+                ['紫微', '天府', '太阳', '太阴'].includes(star.name) ? "text-gold" : "text-white"
+              )}>
+                {star.name}
+              </span>
+              {star.mutability && (
+                <span className={cn(
+                  "text-[8px] md:text-[9px] font-bold scale-90 origin-left",
+                  ['庙', '旺', '得'].includes(star.mutability) ? "text-jade" : 
+                  ['陷', '不'].includes(star.mutability) ? "text-red-500" : "text-zinc-500"
+                )}>
+                  {star.mutability}
+                </span>
+              )}
+              <StarMutagenBadge mutagen={star.mutagen} />
+            </div>
+          ))}
+        </div>
+
+        {/* Right: Minor Stars */}
+        <div className="flex flex-col items-end gap-0 text-right">
+          {minorStars.map((star: any, idx: number) => (
+            <div key={idx} className="flex items-baseline gap-0.5 justify-end">
+              <StarMutagenBadge mutagen={star.mutagen} />
+              <span className={cn(
+                "text-[9px] md:text-[10px] font-medium leading-tight",
+                ['火星', '铃星', '擎羊', '陀罗', '地空', '地劫'].includes(star.name) ? "text-red-400" : "text-zinc-300"
+              )}>
+                {star.name}
+              </span>
+              {star.mutability && (
+                <span className="text-[7px] md:text-[8px] text-zinc-500 scale-75 origin-right">{star.mutability}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Middle Section: Adjective Stars & Ages */}
+      <div className="my-1 flex flex-col gap-0.5">
+        <div className="flex flex-wrap gap-x-1 text-[8px] md:text-[9px] text-zinc-500 leading-none opacity-60">
+          {adjectiveStars.slice(0, 8).map((s: any) => s.name).join(' ')}
+        </div>
+        
+        <div className="flex justify-between items-center">
+           <div className="flex gap-0.5 md:gap-1">
+            {palace.ages.slice(0, 6).map((age: number, i: number) => (
+              <span key={i} className="text-[8px] md:text-[9px] font-mono text-zinc-600">{age}</span>
+            ))}
+          </div>
+          <span className="text-[9px] md:text-[10px] text-zinc-500 font-mono italic">{palace.changsheng12}</span>
+        </div>
+      </div>
+
+      {/* Bottom Section: Decadal & Palace Info */}
+      <div className="pt-0.5 border-t border-white/5 flex justify-between items-end">
+        <div className="flex flex-col">
+          <span className="text-[10px] md:text-[11px] text-zinc-300 font-mono font-bold leading-none">
+            {palace.decadal.range[0]} - {palace.decadal.range[1]}
+          </span>
+          <span className="text-[9px] md:text-[10px] font-bold text-jade/90 serif mt-0.5">
+            {palace.name}{palace.isBodyPalace ? '·身' : ''}
+          </span>
+        </div>
+        
+        <div className="flex flex-col items-end">
+          {isCurrentYear && (
+            <span className="text-[7px] md:text-[8px] text-jade font-black uppercase tracking-tighter animate-pulse mb-0.5">流年</span>
+          )}
+          <span className="text-[9px] md:text-[10px] font-mono text-zinc-500 font-bold leading-none">
+            {palace.heavenlyStem}{palace.earthlyBranch}
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const MatrixAstrolabe = ({ data }: { data: any }) => {
+  if (!data) return null;
+
+  const gridMap = [5, 6, 7, 8, 4, null, null, 9, 3, null, null, 10, 2, 1, 0, 11];
+  const currentYearBranch = data.yearly?.earthlyBranch;
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-4 relative">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-jade/[0.01] rounded-full blur-[120px] pointer-events-none" />
+      
+      <motion.div 
+        initial="hidden"
+        animate="visible"
+        variants={{ visible: { transition: { staggerChildren: 0.01 } } }}
+        className="grid grid-cols-4 grid-rows-4 gap-1 md:gap-1.5 relative z-10 aspect-square md:aspect-auto md:h-[750px]"
+      >
+        {gridMap.map((palaceIdx, gridIdx) => {
+          if (palaceIdx !== null) {
+            const palace = data.palaces[palaceIdx];
+            const isCurrentYear = palace.earthlyBranch === currentYearBranch;
+            return (
+              <div key={gridIdx} className="col-span-1 row-span-1">
+                <PalaceCell palace={palace} isCurrentYear={isCurrentYear} />
+              </div>
+            );
+          }
+          
+          if (gridIdx === 5) {
+            return (
+              <div key="center" className="col-span-2 row-span-2 glass-panel p-3 md:p-5 flex flex-col justify-between relative overflow-hidden border-white/5 bg-zinc-900/30">
+                <div className="relative z-10 flex flex-col h-full text-[10px] md:text-[11px]">
+                  <div className="grid grid-cols-2 gap-x-2 md:gap-x-4 gap-y-1 md:gap-y-2">
+                    <div className="space-y-0.5 md:space-y-1">
+                      <p className="text-zinc-500">四柱：<span className="text-gold font-bold">{data.chineseDate}</span></p>
+                      <p className="text-zinc-500">阳历：<span className="text-zinc-200">{data.solarDate}</span></p>
+                      <p className="text-zinc-500">农历：<span className="text-zinc-200">{data.lunarDate}</span></p>
+                      <p className="text-zinc-500">时辰：<span className="text-zinc-200">{data.time}</span></p>
+                      <p className="text-zinc-500">生肖：<span className="text-zinc-200">{data.zodiac}</span></p>
+                      <p className="text-zinc-500">星座：<span className="text-zinc-200">{data.sign}</span></p>
+                    </div>
+                    <div className="space-y-0.5 md:space-y-1 border-l border-white/5 pl-2 md:pl-4">
+                      <p className="text-zinc-500">命主：<span className="text-jade font-bold">{data.soul}</span></p>
+                      <p className="text-zinc-500">身主：<span className="text-jade font-bold">{data.body}</span></p>
+                      <p className="text-zinc-500">五行局：<span className="text-gold font-bold">{data.fiveElementsClass}</span></p>
+                      <p className="text-zinc-500">阴阳：<span className="text-zinc-200">{data.gender === 'male' ? '乾' : '坤'}造 / {data.yinYang || data.lunarDate?.yinYang || '未知'}</span></p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-auto pt-2 md:pt-4 border-t border-white/5 flex justify-between items-end">
+                    <div className="space-y-0.5">
+                       <p className="text-[8px] md:text-[9px] font-mono text-zinc-600 tracking-widest uppercase">Powered by iztro</p>
+                    </div>
+                    <div className="text-right">
+                       <h3 className="text-lg md:text-xl font-bold text-white serif tracking-tighter">生命全息看板</h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })}
+      </motion.div>
+    </div>
+  );
+};
 
 const SectionHeader = ({ title, subtitle, number }: { title: string; subtitle?: string; number: string }) => (
   <div className="mb-12">
@@ -95,9 +293,12 @@ export default function App() {
   const [year, setYear] = useState(1990);
   const [month, setMonth] = useState(1);
   const [day, setDay] = useState(1);
+  const [gender, setGender] = useState<'male' | 'female'>('male');
+  const [timeIndex, setTimeIndex] = useState(0);
   const [daysInMonth, setDaysInMonth] = useState(31);
 
   const [calcData, setCalcData] = useState<CalcResponse | null>(null);
+  const [astrolabeData, setAstrolabeData] = useState<any>(null);
   const [report, setReport] = useState<string | null>(null);
   
   const [isCalculating, setIsCalculating] = useState(false);
@@ -107,7 +308,7 @@ export default function App() {
   const [hasGeneratedReport, setHasGeneratedReport] = useState(false);
   const [currentHistoryId, setCurrentHistoryId] = useState<number | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'home' | 'insight' | 'history' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'matrix' | 'insight' | 'history' | 'profile'>('home');
   const [user, setUser] = useState<UserInfo>({ loggedIn: false });
   
   // AI Insight State
@@ -194,6 +395,11 @@ export default function App() {
     try {
       const response = await axios.post<CalcResponse>('/api/calculate', { year, month, day });
       setCalcData(response.data);
+      
+      // Iztro calculation
+      const astrolabe = astro.bySolar(`${year}-${month}-${day}`, timeIndex, gender, true);
+      setAstrolabeData(astrolabe);
+
       setHasCalculated(true);
       if (response.data.historyId) {
         setCurrentHistoryId(response.data.historyId);
@@ -571,21 +777,34 @@ export default function App() {
             />
             
             <div className="space-y-12">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 {[
-                  { label: "出生年份", value: year, setter: setYear, options: years },
-                  { label: "月份", value: month, setter: setMonth, options: months },
-                  { label: "日期", value: day, setter: setDay, options: days }
-                ].map((item, i) => (
-                  <div key={i} className="space-y-3">
+                  { id: 'year', label: "出生年份", value: year, setter: setYear, options: years },
+                  { id: 'month', label: "月份", value: month, setter: setMonth, options: months },
+                  { id: 'day', label: "日期", value: day, setter: setDay, options: days },
+                  { id: 'gender', label: "性别", value: gender, setter: setGender, options: ['male', 'female'], labels: { 'male': '乾造 (男)', 'female': '坤造 (女)' } },
+                  { id: 'time', label: "时辰", value: timeIndex, setter: setTimeIndex, options: TIME_OPTIONS.map((_, i) => i), labels: TIME_OPTIONS }
+                ].map((item) => (
+                  <div key={item.id} className="space-y-3">
                     <label className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] ml-1">{item.label}</label>
                     <div className="relative group">
                       <select 
                         value={item.value}
-                        onChange={(e) => item.setter(parseInt(e.target.value))}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (item.id === 'gender') {
+                            (item.setter as React.Dispatch<React.SetStateAction<'male' | 'female'>>)(val as 'male' | 'female');
+                          } else {
+                            (item.setter as React.Dispatch<React.SetStateAction<number>>)(parseInt(val));
+                          }
+                        }}
                         className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-white appearance-none focus:outline-none focus:border-jade/50 transition-all group-hover:bg-white/[0.05]"
                       >
-                        {item.options.map(opt => <option key={opt} value={opt} className="bg-obsidian">{opt}</option>)}
+                        {item.options.map((opt, idx) => (
+                          <option key={opt} value={opt} className="bg-obsidian">
+                            {item.labels ? (Array.isArray(item.labels) ? item.labels[idx] : (item.labels as any)[opt]) : opt}
+                          </option>
+                        ))}
                       </select>
                       <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 pointer-events-none group-hover:text-jade transition-colors" />
                     </div>
@@ -823,7 +1042,37 @@ export default function App() {
       </AnimatePresence>
 
       {/* AI Insight Section */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
+        {activeTab === 'matrix' && (
+          <motion.section
+            key="matrix"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="pb-32"
+          >
+            {hasCalculated && astrolabeData ? (
+              <MatrixAstrolabe data={astrolabeData} />
+            ) : (
+              <div className="py-32 px-6 text-center max-w-md mx-auto space-y-6">
+                <div className="w-16 h-16 rounded-full bg-jade/5 flex items-center justify-center mx-auto">
+                  <Compass className="w-8 h-8 text-jade/30" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-white serif">矩阵尚未初始化</h3>
+                  <p className="text-zinc-500 text-sm">请先在首页输入您的出生信息并点击“开启演算”以同步能量矩阵。</p>
+                </div>
+                <button 
+                  onClick={() => setActiveTab('home')}
+                  className="btn-primary"
+                >
+                  前往初始化
+                </button>
+              </div>
+            )}
+          </motion.section>
+        )}
+
         {activeTab === 'insight' && (
           <motion.section 
             key="insight"
@@ -1201,6 +1450,7 @@ export default function App() {
         <div className="glass-panel px-4 py-3 flex items-center justify-around md:justify-center md:gap-12 backdrop-blur-2xl bg-obsidian/40 border-white/10 shadow-2xl">
           {[
             { id: 'home', icon: Home, label: '首页' },
+            { id: 'matrix', icon: Compass, label: '矩阵' },
             { id: 'insight', icon: Sparkles, label: '洞察' },
             { id: 'history', icon: History, label: '历史' },
             { id: 'profile', icon: User, label: '我的' }
