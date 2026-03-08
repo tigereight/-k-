@@ -318,64 +318,12 @@ export default function App() {
     setIsGeneratingHealthReport(true);
     setHealthReport(null);
 
-    const systemInstruction = `你现在是紫微斗数健康领域的大师级解读专家，同时精通中医经络学、五行体质学、子午流注与现代预防医学。你从业35年以上，擅长将紫微斗数星盘转化为精准、优雅、可落地的个人健康风险报告。
-你的分析必须严格遵循以下四大模块顺序，缺一不可。报告风格专业、温暖、赋能，从不恐吓用户，而是用“预警 + 赋能”的方式，帮助用户提前改变生活方式化解隐患。
-
-模块一：十二宫位与人体经脉图（小白第一步 · 最直观致命伤痛定位）
-首先忽略传统“疾厄宫”，直接扫视星盘的12个固定地支宫位（子、丑、寅、卯、辰、巳、午、未、申、酉、戌、亥）。哪个宫位里的煞星（擎羊、陀罗、火星、铃星、地空、地劫）+ 化忌数量最多，那个地支对应的经脉就是用户一生的“死穴”。
-
-宫位地支对应经脉核心健康靶点与致命伤痛风险
-寅：左下肺经。先天肺弱、慢性呼吸道疾病、严重气喘、顽固性皮肤病
-卯：正左大肠经。肠道吸收极差、慢性便秘/腹泻、大肠息肉/肿瘤倾向
-辰：左上胃经。胃溃疡、慢性胃炎、胃下垂、严重消化不良
-巳：左顶脾经。脾虚湿重、代谢综合征、易发胖、肌肉萎缩
-午：正顶心经。先天性心脏问题、心律不齐、突发心梗高危
-未：右顶小肠经。营养吸收障碍、肩颈僵硬、免疫力低下
-申：右上膀胱经。慢性背痛、风寒易入侵、泌尿系统反复感染
-酉：正右肾经。先天肾气不足、骨质疏松、生殖系统疾病、严重腰痛
-戌：右下心包经。后天性心脏病、心绞痛、冠心病、血管堵塞
-亥：正底三焦经。内分泌失调、淋巴系统问题、全身水肿
-子：底左胆经。胆结石、偏头痛、顽固性失眠、肝胆互为表里病变
-丑：底右肝经。肝气郁结、重度抑郁、脂肪肝、肝硬化/肝癌高危
-
-额外铁律：午宫主先天心脏，戌宫主后天心脏。午宫煞星多 = 先天心脏缺陷；戌宫煞星多 = 后天熬夜、压力、饮食导致的心脏问题。
-
-模块二：疾厄宫星曜体质字典（体质根源诊断）
-看完十二地支后，再看疾厄宫落入的陷落的主星（庙、旺、得、利、平的主星不需要参考），这是用户日常体质的“底盘”。
-木系（神经·肝胆）：天机（思虑过重）、贪狼（欲望强）
-火系（心血·头部）：太阳（心血管负荷大）、廉贞（最危险星，肿瘤倾向）
-土系（脾胃·消化）：紫微/天府（中年易富贵病）、天梁（医药星，带病延年）
-金系（肺·骨骼）：武曲（肺弱+骨骼脆弱）、七杀（血光星，手术外伤）
-水系（肾·内分泌）：天同（水肿腰痛）、太阴/破军（内分泌失调）、巨门（暗疾）
-
-模块三：动态扫雷 —— 疾病何时引爆
-1. 大限排雷（10年周期）：当前大限宫位若出现“大限化忌”飞入先天疾厄宫或飞入模块一中煞星最多的宫位 → 这10年是健康低谷期。
-2. 流年排雷（当年风险）：流年疾厄宫或流年命宫出现擎羊+陀罗+化忌 → 当年高危。
-3. 福德宫心理预警：流年福德宫化忌 → 心理崩溃会直接导致躯体疾病爆发。
-
-模块四：小白实操3步走
-1. 找死穴：扫十二地支宫位，锁定煞星最多的宫位。
-2. 看底盘：命宫强 + 疾厄宫弱 → 大难不死；命宫弱 + 疾厄宫化忌 → 立即开始养生。
-3. 查流年：每年年初必须看流年命宫与疾厄宫是否撞化忌。
-
-报告输出要求：
-标题：【紫微斗数健康大师报告】—— {姓名} 一生健康风险全解析
-结构：模块一 → 模块二 → 模块三 → 模块四 → 个性化预防方案
-语言：专业、温暖、赋能，结尾加“命由天定，运由己造”励志语
-免责声明：本报告仅为传统命理健康趋势预警，非西医诊断，请结合现代医学检查`;
-
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: `请根据以下紫微斗数排盘数据生成健康报告：\n${JSON.stringify(astrolabeData, null, 2)}`,
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-        },
+      const response = await axios.post('/api/generate-health-report', {
+        astrolabeData
       });
 
-      setHealthReport(response.text || "未能生成报告，请稍后再试。");
+      setHealthReport(response.data.report || "未能生成报告，请稍后再试。");
       
       // Scroll to report
       setTimeout(() => {
@@ -1182,28 +1130,57 @@ export default function App() {
                       exit={{ opacity: 0, y: -40 }}
                       className="max-w-4xl mx-auto"
                     >
-                      <div className="glass-panel p-8 md:p-16 border-jade/30 bg-jade/[0.02] shadow-[0_0_100px_rgba(0,168,107,0.1)] relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-8 opacity-10">
-                          <HeartPulse className="w-32 h-32 text-jade" />
+                      <div className="bg-white text-zinc-900 p-8 md:p-20 shadow-[0_30px_100px_rgba(0,0,0,0.5)] relative overflow-hidden rounded-sm border-t-[12px] border-jade">
+                        {/* Report Header Decor */}
+                        <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+                          <HeartPulse className="w-64 h-64 text-jade" />
                         </div>
                         
-                        <div className="markdown-body prose prose-invert prose-jade max-w-none">
+                        <div className="flex justify-between items-start mb-16 border-b-2 border-zinc-100 pb-8">
+                          <div className="space-y-2">
+                            <h3 className="text-jade font-black tracking-[0.2em] uppercase text-sm">Health Matrix Report</h3>
+                            <p className="text-zinc-400 text-xs font-mono">ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-zinc-900 font-bold serif text-xl">紫微全息健康档案</p>
+                            <p className="text-zinc-400 text-xs">{new Date().toLocaleDateString()}</p>
+                          </div>
+                        </div>
+
+                        <div className="markdown-body prose prose-zinc max-w-none 
+                          prose-headings:serif prose-headings:text-zinc-900 prose-headings:font-bold
+                          prose-p:text-zinc-700 prose-p:leading-relaxed prose-p:text-justify
+                          prose-strong:text-jade prose-strong:font-bold
+                          prose-blockquote:border-l-4 prose-blockquote:border-jade prose-blockquote:bg-jade/5 prose-blockquote:py-2 prose-blockquote:px-6 prose-blockquote:italic
+                        ">
                           <Markdown>{healthReport}</Markdown>
                         </div>
                         
-                        <div className="mt-16 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-jade/20 flex items-center justify-center border border-jade/30">
-                              <ShieldCheck className="w-6 h-6 text-jade" />
+                        <div className="mt-20 pt-10 border-t-2 border-zinc-100 flex flex-col md:flex-row justify-between items-center gap-8">
+                          <div className="flex items-center gap-6">
+                            <div className="w-16 h-16 rounded-full bg-jade/10 flex items-center justify-center border border-jade/20">
+                              <ShieldCheck className="w-8 h-8 text-jade" />
                             </div>
-                            <div>
-                              <p className="text-white font-bold">大师级健康预警</p>
-                              <p className="text-zinc-500 text-xs">由 Gemini 3.1 Pro 深度驱动</p>
+                            <div className="space-y-1">
+                              <p className="text-zinc-900 font-black text-sm uppercase tracking-wider">Expert Verified Analysis</p>
+                              <p className="text-zinc-400 text-[10px] leading-tight max-w-[200px]">
+                                本报告基于紫微斗数星盘能量矩阵，结合中医经络学说深度生成。
+                              </p>
                             </div>
                           </div>
-                          <p className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
-                            Energy Matrix Analysis // Health Protocol v1.0
-                          </p>
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="flex gap-2">
+                              {[1,2,3].map(i => <div key={i} className="w-8 h-1 bg-jade/20 rounded-full" />)}
+                            </div>
+                            <p className="text-[10px] text-zinc-300 font-mono uppercase tracking-widest">
+                              Confidential // Health Protocol v2.1
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Watermark */}
+                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 opacity-[0.03] pointer-events-none select-none">
+                          <p className="text-8xl font-black whitespace-nowrap rotate-[-15deg]">CONFIDENTIAL REPORT</p>
                         </div>
                       </div>
                     </motion.div>
