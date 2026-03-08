@@ -23,10 +23,13 @@ import {
   Trash2,
   X,
   Mail,
-  Lock
+  Lock,
+  HeartPulse,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import ReactMarkdown from 'react-markdown';
+import Markdown from 'react-markdown';
+import { GoogleGenAI } from "@google/genai";
 import { astro } from 'iztro';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -138,13 +141,13 @@ const PalaceCell = ({ palace, isCurrentYear }: { palace: any; isCurrentYear: boo
               )}>
                 {star.name}
               </span>
-              {star.mutability && (
+              {star.brightness && (
                 <span className={cn(
                   "text-[8px] md:text-[9px] font-bold scale-90 origin-left",
-                  ['庙', '旺', '得'].includes(star.mutability) ? "text-jade" : 
-                  ['陷', '不'].includes(star.mutability) ? "text-red-500" : "text-zinc-500"
+                  ['庙', '旺', '得'].includes(star.brightness) ? "text-jade" : 
+                  ['陷', '不'].includes(star.brightness) ? "text-red-500" : "text-zinc-500"
                 )}>
-                  {star.mutability}
+                  {star.brightness}
                 </span>
               )}
               <StarMutagenBadge mutagen={star.mutagen} />
@@ -163,8 +166,8 @@ const PalaceCell = ({ palace, isCurrentYear }: { palace: any; isCurrentYear: boo
               )}>
                 {star.name}
               </span>
-              {star.mutability && (
-                <span className="text-[7px] md:text-[8px] text-zinc-500 scale-75 origin-right">{star.mutability}</span>
+              {star.brightness && (
+                <span className="text-[7px] md:text-[8px] text-zinc-500 scale-75 origin-right">{star.brightness}</span>
               )}
             </div>
           ))}
@@ -173,8 +176,14 @@ const PalaceCell = ({ palace, isCurrentYear }: { palace: any; isCurrentYear: boo
 
       {/* Middle Section: Adjective Stars & Ages */}
       <div className="my-1 flex flex-col gap-0.5">
-        <div className="flex flex-wrap gap-x-1 text-[8px] md:text-[9px] text-zinc-500 leading-none opacity-60">
-          {adjectiveStars.slice(0, 8).map((s: any) => s.name).join(' ')}
+        <div className="flex flex-wrap gap-x-1 gap-y-0.5 leading-none">
+          {adjectiveStars.slice(0, 10).map((star: any, idx: number) => (
+            <span key={idx} className="text-[8px] md:text-[9px] text-zinc-500 opacity-60 flex items-baseline gap-0.5">
+              {star.name}
+              {star.brightness && <span className="text-[7px] scale-75 origin-left">{star.brightness}</span>}
+              {star.mutagen && <span className="text-jade/80 font-bold scale-75 origin-left">{star.mutagen}</span>}
+            </span>
+          ))}
         </div>
         
         <div className="flex justify-between items-center">
@@ -300,6 +309,85 @@ export default function App() {
   const [calcData, setCalcData] = useState<CalcResponse | null>(null);
   const [astrolabeData, setAstrolabeData] = useState<any>(null);
   const [report, setReport] = useState<string | null>(null);
+
+  const [isGeneratingHealthReport, setIsGeneratingHealthReport] = useState(false);
+  const [healthReport, setHealthReport] = useState<string | null>(null);
+
+  const generateHealthReport = async () => {
+    if (!astrolabeData) return;
+    setIsGeneratingHealthReport(true);
+    setHealthReport(null);
+
+    const systemInstruction = `你现在是紫微斗数健康领域的大师级解读专家，同时精通中医经络学、五行体质学、子午流注与现代预防医学。你从业35年以上，擅长将紫微斗数星盘转化为精准、优雅、可落地的个人健康风险报告。
+你的分析必须严格遵循以下四大模块顺序，缺一不可。报告风格专业、温暖、赋能，从不恐吓用户，而是用“预警 + 赋能”的方式，帮助用户提前改变生活方式化解隐患。
+
+模块一：十二宫位与人体经脉图（小白第一步 · 最直观致命伤痛定位）
+首先忽略传统“疾厄宫”，直接扫视星盘的12个固定地支宫位（子、丑、寅、卯、辰、巳、午、未、申、酉、戌、亥）。哪个宫位里的煞星（擎羊、陀罗、火星、铃星、地空、地劫）+ 化忌数量最多，那个地支对应的经脉就是用户一生的“死穴”。
+
+宫位地支对应经脉核心健康靶点与致命伤痛风险
+寅：左下肺经。先天肺弱、慢性呼吸道疾病、严重气喘、顽固性皮肤病
+卯：正左大肠经。肠道吸收极差、慢性便秘/腹泻、大肠息肉/肿瘤倾向
+辰：左上胃经。胃溃疡、慢性胃炎、胃下垂、严重消化不良
+巳：左顶脾经。脾虚湿重、代谢综合征、易发胖、肌肉萎缩
+午：正顶心经。先天性心脏问题、心律不齐、突发心梗高危
+未：右顶小肠经。营养吸收障碍、肩颈僵硬、免疫力低下
+申：右上膀胱经。慢性背痛、风寒易入侵、泌尿系统反复感染
+酉：正右肾经。先天肾气不足、骨质疏松、生殖系统疾病、严重腰痛
+戌：右下心包经。后天性心脏病、心绞痛、冠心病、血管堵塞
+亥：正底三焦经。内分泌失调、淋巴系统问题、全身水肿
+子：底左胆经。胆结石、偏头痛、顽固性失眠、肝胆互为表里病变
+丑：底右肝经。肝气郁结、重度抑郁、脂肪肝、肝硬化/肝癌高危
+
+额外铁律：午宫主先天心脏，戌宫主后天心脏。午宫煞星多 = 先天心脏缺陷；戌宫煞星多 = 后天熬夜、压力、饮食导致的心脏问题。
+
+模块二：疾厄宫星曜体质字典（体质根源诊断）
+看完十二地支后，再看疾厄宫落入的陷落的主星（庙、旺、得、利、平的主星不需要参考），这是用户日常体质的“底盘”。
+木系（神经·肝胆）：天机（思虑过重）、贪狼（欲望强）
+火系（心血·头部）：太阳（心血管负荷大）、廉贞（最危险星，肿瘤倾向）
+土系（脾胃·消化）：紫微/天府（中年易富贵病）、天梁（医药星，带病延年）
+金系（肺·骨骼）：武曲（肺弱+骨骼脆弱）、七杀（血光星，手术外伤）
+水系（肾·内分泌）：天同（水肿腰痛）、太阴/破军（内分泌失调）、巨门（暗疾）
+
+模块三：动态扫雷 —— 疾病何时引爆
+1. 大限排雷（10年周期）：当前大限宫位若出现“大限化忌”飞入先天疾厄宫或飞入模块一中煞星最多的宫位 → 这10年是健康低谷期。
+2. 流年排雷（当年风险）：流年疾厄宫或流年命宫出现擎羊+陀罗+化忌 → 当年高危。
+3. 福德宫心理预警：流年福德宫化忌 → 心理崩溃会直接导致躯体疾病爆发。
+
+模块四：小白实操3步走
+1. 找死穴：扫十二地支宫位，锁定煞星最多的宫位。
+2. 看底盘：命宫强 + 疾厄宫弱 → 大难不死；命宫弱 + 疾厄宫化忌 → 立即开始养生。
+3. 查流年：每年年初必须看流年命宫与疾厄宫是否撞化忌。
+
+报告输出要求：
+标题：【紫微斗数健康大师报告】—— {姓名} 一生健康风险全解析
+结构：模块一 → 模块二 → 模块三 → 模块四 → 个性化预防方案
+语言：专业、温暖、赋能，结尾加“命由天定，运由己造”励志语
+免责声明：本报告仅为传统命理健康趋势预警，非西医诊断，请结合现代医学检查`;
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-pro-preview",
+        contents: `请根据以下紫微斗数排盘数据生成健康报告：\n${JSON.stringify(astrolabeData, null, 2)}`,
+        config: {
+          systemInstruction,
+          temperature: 0.7,
+        },
+      });
+
+      setHealthReport(response.text || "未能生成报告，请稍后再试。");
+      
+      // Scroll to report
+      setTimeout(() => {
+        document.getElementById('health-report-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (err) {
+      console.error("Health report generation failed", err);
+      setHealthReport("生成报告时发生错误，请检查网络连接或稍后再试。");
+    } finally {
+      setIsGeneratingHealthReport(false);
+    }
+  };
   
   const [isCalculating, setIsCalculating] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -1052,7 +1140,76 @@ export default function App() {
             className="pb-32"
           >
             {hasCalculated && astrolabeData ? (
-              <MatrixAstrolabe data={astrolabeData} />
+              <div className="space-y-24">
+                <MatrixAstrolabe data={astrolabeData} />
+                
+                {/* Health Report Trigger */}
+                <div className="max-w-3xl mx-auto text-center space-y-8">
+                  <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-jade/10 border border-jade/20 text-jade text-xs font-bold uppercase tracking-widest">
+                    <HeartPulse className="w-4 h-4" />
+                    AI Health Insight
+                  </div>
+                  <h2 className="text-3xl md:text-5xl font-bold text-white serif tracking-tight">生成您的 AI 健康大师报告</h2>
+                  <p className="text-zinc-500 text-lg max-w-2xl mx-auto">
+                    基于您的先天命盘，结合中医经络与现代预防医学，深度解析一生健康风险与养生方案。
+                  </p>
+                  <button 
+                    onClick={generateHealthReport}
+                    disabled={isGeneratingHealthReport}
+                    className="btn-primary px-12 py-5 text-lg flex items-center justify-center gap-4 mx-auto group"
+                  >
+                    {isGeneratingHealthReport ? (
+                      <>
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                        正在深度解析命盘能量...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+                        立即生成健康报告
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Health Report Display */}
+                <AnimatePresence>
+                  {healthReport && (
+                    <motion.div 
+                      id="health-report-section"
+                      initial={{ opacity: 0, y: 40 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -40 }}
+                      className="max-w-4xl mx-auto"
+                    >
+                      <div className="glass-panel p-8 md:p-16 border-jade/30 bg-jade/[0.02] shadow-[0_0_100px_rgba(0,168,107,0.1)] relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-10">
+                          <HeartPulse className="w-32 h-32 text-jade" />
+                        </div>
+                        
+                        <div className="markdown-body prose prose-invert prose-jade max-w-none">
+                          <Markdown>{healthReport}</Markdown>
+                        </div>
+                        
+                        <div className="mt-16 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-jade/20 flex items-center justify-center border border-jade/30">
+                              <ShieldCheck className="w-6 h-6 text-jade" />
+                            </div>
+                            <div>
+                              <p className="text-white font-bold">大师级健康预警</p>
+                              <p className="text-zinc-500 text-xs">由 Gemini 3.1 Pro 深度驱动</p>
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">
+                            Energy Matrix Analysis // Health Protocol v1.0
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             ) : (
               <div className="py-32 px-6 text-center max-w-md mx-auto space-y-6">
                 <div className="w-16 h-16 rounded-full bg-jade/5 flex items-center justify-center mx-auto">
@@ -1175,7 +1332,7 @@ export default function App() {
                           )}
                         >
                           {msg.role === 'assistant' ? (
-                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                            <Markdown>{msg.content}</Markdown>
                           ) : (
                             msg.content
                           )}
@@ -1240,9 +1397,9 @@ export default function App() {
                           />
                         </div>
                         <div className="mt-8 pt-8 border-t border-white/5 prose prose-invert prose-jade max-w-none prose-p:leading-relaxed prose-headings:serif prose-headings:text-jade prose-strong:text-gold">
-                          <ReactMarkdown>
+                          <Markdown>
                             {insightMessages[insightMessages.length - 1].content.replace(/<用户体质：.+?>/, '')}
-                          </ReactMarkdown>
+                          </Markdown>
                         </div>
                       </motion.div>
                     )}
