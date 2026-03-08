@@ -6,12 +6,14 @@ import { Solar, Lunar } from "lunar-javascript";
 import path from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
+import { GoogleGenAI } from "@google/genai";
 import "dotenv/config";
 import { createServer as createViteServer } from "vite";
 
 declare module "express-session" {
   interface SessionData {
     userId: number;
+    insightMessages: any[];
   }
 }
 
@@ -41,16 +43,17 @@ db.exec(`
 
 async function startServer() {
   const app = express();
+  app.set('trust proxy', 1);
   app.use(express.json());
 
   // Session Configuration
   app.use(session({
     secret: process.env.SESSION_SECRET || "ahi-secret-key",
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,
+      sameSite: "none",
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     }
   }));
@@ -185,13 +188,11 @@ class QiType {
 class AstronomyEngine {
   static getExactJieqi(year: number, termName: string): Date {
     try {
-      // 预定义的月份映射，提高搜索效率
       const monthMap: Record<string, number> = {
         "大寒": 1, "春分": 3, "小满": 5, "芒种": 6, "大暑": 7, "处暑": 8, "秋分": 9, "小雪": 11, "立冬": 11
       };
       const m = monthMap[termName] || 6;
 
-      // 搜索范围：目标月及其前后一个月，以及前一年的 12 月（处理跨年大寒）
       const checkMonths = [
         { y: year, m: m },
         { y: year, m: m - 1 },
@@ -207,7 +208,6 @@ class AstronomyEngine {
         
         const lunar = Solar.fromYmd(y, mon, 15).getLunar();
         const jieqi = lunar.getJieQiTable();
-        // 兼容不同版本的 lunar-javascript (Map vs Object)
         const term = (typeof (jieqi as any).get === 'function') ? (jieqi as any).get(termName) : (jieqi as any)[termName];
         
         if (term && term.getYear() === year) {
@@ -215,7 +215,6 @@ class AstronomyEngine {
         }
       }
 
-      // 兜底：遍历全年
       for (let targetM = 1; targetM <= 12; targetM++) {
         const lunar = Solar.fromYmd(year, targetM, 15).getLunar();
         const jieqi = lunar.getJieQiTable();
@@ -244,11 +243,21 @@ class WuYunLiuQi {
 
   constructor(dateObj: Date) {
     this.targetDate = dateObj;
-    const currentYearDahan = AstronomyEngine.getExactJieqi(dateObj.getFullYear(), "大寒");
-    if (this.targetDate < currentYearDahan) {
-      this.wuyunYear = dateObj.getFullYear() - 1;
+    const currentYear = dateObj.getFullYear();
+    const stem = HeavenlyStem.fromYear(currentYear);
+    const dahan = AstronomyEngine.getExactJieqi(currentYear, "大寒");
+    
+    const boundary = new Date(dahan);
+    if (stem.adequacy === Adequacy.EXCESS) {
+      boundary.setDate(boundary.getDate() - 13);
     } else {
-      this.wuyunYear = dateObj.getFullYear();
+      boundary.setDate(boundary.getDate() + 13);
+    }
+
+    if (this.targetDate < boundary) {
+      this.wuyunYear = currentYear - 1;
+    } else {
+      this.wuyunYear = currentYear;
     }
 
     this.stem = HeavenlyStem.fromYear(this.wuyunYear);
@@ -435,24 +444,37 @@ class AHIEngine {
   }
 
   _calcBaseScore() {
-    let score = 50;
+    let score = 75; // 基础健康分提升至 75
     const hEl = this.birthHostQi.element;
     const gEl = this.birthGuestQi.element;
 
-    // 匹配用户最新的加权逻辑要求
     if (ElementGeneration[gEl] === hEl || ElementGeneration[hEl] === gEl || gEl === hEl) {
-      score += 10;
+      score += 5;
     } else if (ElementOvercomes[hEl] === gEl) {
-      score -= 15;
+      score -= 8;
     } else if (ElementOvercomes[gEl] === hEl) {
-      score -= 10;
+      score -= 5;
     }
 
-    if (this.birthGuestQi.display_name === QiType.MILD_YIN_FIRE.display_name && this.birthHostQi.display_name === QiType.WEAK_YANG_FIRE.display_name) {
-      score += 8;
-    } else if (this.birthGuestQi.display_name === QiType.WEAK_YANG_FIRE.display_name && this.birthHostQi.display_name === QiType.MILD_YIN_FIRE.display_name) {
-      score -= 8;
+    const hQi = this.birthHostQi.display_name;
+    const gQi = this.birthGuestQi.display_name;
+    if (gQi.includes("君火") && hQi.includes("相火")) {
+      score += 5;
+    } else if (gQi.includes("相火") && hQi.includes("君火")) {
+      score -= 5;
     }
+
+    const effect = this.natalCalc.getClimaticEffect()!;
+    const siTian = effect.celestial.element;
+    const suiYun = this.natalSuiYun;
+    const branchEl = this.natalCalc.branch.element;
+
+    if (ElementGeneration[siTian] === suiYun) score += 10;
+    if (suiYun === branchEl) score += 8;
+    if (ElementGeneration[suiYun] === siTian) score -= 6;
+    if (ElementOvercomes[suiYun] === siTian) score -= 8;
+    if (ElementOvercomes[siTian] === suiYun) score -= 12;
+    if (suiYun === siTian) score -= 5;
 
     return score;
   }
@@ -467,95 +489,119 @@ class AHIEngine {
     const siTian = effect.celestial;
     const zaiQuan = effect.terrestrial;
 
-    // A. 五运
     let suiYunPts = 0;
-    if (cySuiYun === this.natalSuiYun) {
-      suiYunPts += 25;
-    } else if (ElementGeneration[cySuiYun] === this.natalSuiYun || ElementGeneration[this.natalSuiYun] === cySuiYun) {
-      suiYunPts += 18;
-    } else if (ElementOvercomes[cySuiYun] === this.natalSuiYun || ElementOvercomes[this.natalSuiYun] === cySuiYun) {
-      suiYunPts -= 22;
-    }
+    if (cySuiYun === this.natalSuiYun) suiYunPts += 10;
+    else if (ElementGeneration[cySuiYun] === this.natalSuiYun || ElementGeneration[this.natalSuiYun] === cySuiYun) suiYunPts += 7;
+    else if (ElementOvercomes[cySuiYun] === this.natalSuiYun || ElementOvercomes[this.natalSuiYun] === cySuiYun) suiYunPts -= 10;
 
-    if (cyAdequacy === Adequacy.EXCESS && ElementOvercomes[cySuiYun] === this.weakZang) {
-      suiYunPts -= 15;
-    }
-    if (cyAdequacy === Adequacy.DEFICIENCY && ElementGeneration[cySuiYun] === this.strongZang) {
-      suiYunPts += 10;
-    }
+    if (cyAdequacy === Adequacy.EXCESS && ElementOvercomes[cySuiYun] === this.weakZang) suiYunPts -= 6;
+    if (cyAdequacy === Adequacy.DEFICIENCY && ElementGeneration[cySuiYun] === this.strongZang) suiYunPts += 5;
 
     const guestYuns = flowYear.getGuestFortunes().map(f => f.element);
     let stepPtsSum = 0;
     for (const gy of guestYuns) {
       let s = 0;
-      if (gy === this.birthHostYun) {
-        s += 20;
-      } else if (ElementGeneration[gy] === this.birthHostYun || ElementGeneration[gy] === this.weakZang) {
-        s += 15;
-      } else if (ElementOvercomes[gy] === this.birthHostYun || ElementOvercomes[gy] === this.weakZang) {
-        s -= 25;
-      }
+      if (gy === this.birthHostYun) s += 8;
+      else if (ElementGeneration[gy] === this.birthHostYun || ElementGeneration[this.birthHostYun] === gy) s += 6;
+      else if (ElementOvercomes[gy] === this.birthHostYun || ElementOvercomes[this.birthHostYun] === gy) s -= 10;
       stepPtsSum += s;
     }
     const avgStepPts = stepPtsSum / 5;
+    const weightedYun = (suiYunPts * 0.90) + (avgStepPts * 0.10);
 
-    // B. 六气
     const bhPrefix = this.birthHostQi.display_name.substring(0, 2);
     const stPrefix = siTian.display_name.substring(0, 2);
     const zqPrefix = zaiQuan.display_name.substring(0, 2);
 
     let sqPts1 = 0;
-    if (stPrefix === bhPrefix || zqPrefix === bhPrefix) {
-      sqPts1 += 22;
-    }
-    if (ElementGeneration[siTian.element] === this.birthHostQi.element) {
-      sqPts1 += 16;
-    }
-    if (ElementOvercomes[siTian.element] === this.birthHostQi.element || ElementOvercomes[siTian.element] === this.weakZang) {
-      sqPts1 -= 28;
-    }
-    if (ElementOvercomes[zaiQuan.element] === this.birthHostQi.element || ElementOvercomes[zaiQuan.element] === this.weakZang) {
-      sqPts1 -= 28;
-    }
+    if (stPrefix === bhPrefix || zqPrefix === bhPrefix) sqPts1 += 8;
+    if (ElementGeneration[siTian.element] === this.birthHostQi.element) sqPts1 += 6;
+    if (ElementOvercomes[siTian.element] === this.birthHostQi.element || ElementOvercomes[siTian.element] === this.weakZang) sqPts1 -= 12;
+    if (ElementOvercomes[zaiQuan.element] === this.birthHostQi.element || ElementOvercomes[zaiQuan.element] === this.weakZang) sqPts1 -= 12;
 
     let sqPts2 = 0;
-    const natalYun = this.natalSuiYun;
-    const cyBranchEl = flowYear.branch.element;
+    const siTianEl = siTian.element;
+    const guestQiEl = this.birthGuestQi.element;
 
-    if (ElementGeneration[siTian.element] === natalYun) {
-      sqPts2 += 22;
-    } else if (natalYun === cyBranchEl) {
-      sqPts2 += 20;
-    } else if (ElementGeneration[natalYun] === siTian.element) {
-      sqPts2 -= 15;
-    } else if (ElementOvercomes[natalYun] === siTian.element) {
-      sqPts2 -= 20;
-    } else if (ElementOvercomes[siTian.element] === natalYun) {
-      sqPts2 -= 28;
-    } else if (natalYun === siTian.element) {
-      sqPts2 -= 12;
+    if (siTianEl === cySuiYun) {
+      if (siTianEl === this.strongZang) sqPts2 += 8;
+      if (siTianEl === this.weakZang) sqPts2 -= 12;
     }
 
-    const weightedYun = (suiYunPts * 0.90) + (avgStepPts * 0.10);
-    const weightedQi = (sqPts1 * 0.25) + (sqPts2 * 0.75);
-    const totalRawCollision = (weightedYun * 0.30) + (weightedQi * 0.70);
+    if (ElementOvercomes[siTianEl] === guestQiEl) sqPts2 -= 15;
+    if (ElementGeneration[siTianEl] === guestQiEl) sqPts2 += 10;
+    if (ElementOvercomes[guestQiEl] === siTianEl) sqPts2 -= 8;
 
-    return totalRawCollision;
+    const weightedQi = (sqPts1 * 0.40) + (sqPts2 * 0.60);
+    return (weightedYun * 0.30) + (weightedQi * 0.70);
   }
 }
+
+// ==========================================
+// Knowledge Bases
+// ==========================================
+
+const SANYIN_KNOWLEDGE = `
+【一、 健康指数(AHI)算法与加权规则解析】
+告诉用户，其0-60岁的健康K线图并非随机生成，而是基于以下严密的中医运气学数学模型计算得出：
+1. 个人基准分 (Base Score)：基础分为75分。根据出生日的“主客加临”吉凶决定先天底子。
+2. 年度流年碰撞分 (Impact Score)：包含五运碰撞(30%)和六气碰撞(70%)。
+3. 动态生命周期与健康惯性：当年最终收盘价 = (去年健康分*0.6 + 先天基准分*0.4) + 流年碰撞净分 + 年龄漂移值。
+`;
+
+const CONSTITUTION_KNOWLEDGE_BASE = `
+4.1 平和质
+定义：平和质指一种强健、壮实的体质状态，表现为体态适中、面色红润、精力充沛。
+特征：体形匀称健壮。面色、肤色润泽，头发稠密有光泽，目光有神，鼻色明润，嗅觉通利，口和，唇色红润，不易疲劳，精力充沛，耐受寒热，睡眠良好，胃纳佳，二便正常。性格随和开朗。
+文献依据：《素问·调经论》：“阴阳匀平，以充其形，九候若一，命曰平人。”
+
+4.2 气虚质
+定义：因元气不足，表现为气息低弱、机体及脏腑功能低下的体质状态。
+特征：肌肉不健壮，瘦人为多。语音低怯，气短懒言，肢体容易疲乏，精神不振，易出汗，自汗，面色偏黄或白，目光少神，头晕，健忘。舌淡红，舌体胖大，边有齿痕。性格内向，情绪不稳定，胆小。
+发病倾向：易患感冒，内脏下垂，慢性疲劳。
+
+4.3 阳虚质
+定义：因阳气不足，以虚寒现象为主要特征的体质状态。
+特征：形体白胖、肌肉不壮。平素畏冷，手足不温，喜热饮食，精神不振，睡眠偏多，面色柔白，唇色淡。舌淡胖嫩，苔白润。性格沉静，内向。
+发病倾向：易患寒证，如水肿、腹泻、阳痿、甲减。
+
+4.4 阴虚质
+定义：体内津液、精血等阴液亏少，以阴虚内热为主要特征的体质状态。
+特征：体形瘦长。手足心热，易口燥咽干，面色潮红，有烘热感，睡眠差，心烦易怒。舌红少津少苔。性情急躁，外向好动。
+发病倾向：易患阴虚燥热病变，如糖尿病、更年期综合征。
+
+4.5 痰湿质
+定义：由于水液内停、痰湿凝聚，以黏滞重浊为主要特征的体质状态。
+特征：体形肥胖，腹部肥满松软。面部皮肤油脂较多，多汗且黏，胸闷，痰多，易困倦，身重不爽。口黏腻或甜。舌体胖大，苔白腻。性格偏温和稳重。
+发病倾向：易患消渴、中风、胸痹、高脂血症。
+
+4.6 湿热质
+定义：以湿热内蕴为主要特征的体质状态。
+特征：形体偏胖或瘦削。面垢油光，易生痤疮粉刺，口苦口干，身重困倦，心烦懈怠，眼睛红赤。舌质偏红，苔黄腻。性格多急躁易怒。
+发病倾向：易患疮疖、黄疸、皮肤炎。
+
+4.7 瘀血质
+定义：体内血液运行不畅，有瘀血内阻的体质状态。
+特征：多为瘦人。面色晦暗，皮肤偏暗或色素沉着，易出现瘀斑，易患疼痛，口唇暗淡或紫。舌质暗，有瘀点或瘀斑。性格易烦躁，健忘。
+发病倾向：易患出血、中风、胸痹、痛经。
+
+4.8 气郁质
+定义：长期情志不畅、气机郁滞形成的体质状态。
+特征：多为瘦人。性格内向不稳定，忧郁脆弱，敏感多疑，胸胁胀满，善太息，睡眠较差，食欲减退。舌淡红，苔薄白，脉弦细。
+发病倾向：易患郁症、脏躁、梅核气、乳腺增生。
+
+4.9 特禀质
+定义：由于先天性和遗传因素造成的体质缺陷，包括先天性、遗传性疾病和过敏体质等。
+特征：无特殊，或有畸形。过敏体质者易过敏反应（食物、花粉、药物等），鼻塞喷嚏流涕。
+`;
 
 // ==========================================
 // API Routes
 // ==========================================
 
-// ==========================================
-// API Routes - Auth
-// ==========================================
-
 app.post("/api/register", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "邮箱和密码不能为空" });
-
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const stmt = db.prepare("INSERT INTO users (email, password) VALUES (?, ?)");
@@ -563,74 +609,48 @@ app.post("/api/register", async (req, res) => {
     req.session.userId = result.lastInsertRowid as number;
     res.json({ success: true, userId: req.session.userId });
   } catch (error: any) {
-    if (error.message.includes("UNIQUE constraint failed")) {
-      res.status(400).json({ error: "该邮箱已被注册" });
-    } else {
-      res.status(500).json({ error: "注册失败" });
-    }
+    if (error.message.includes("UNIQUE constraint failed")) res.status(400).json({ error: "该邮箱已被注册" });
+    else res.status(500).json({ error: "注册失败" });
   }
 });
 
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
   const user: any = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
-
   if (user && await bcrypt.compare(password, user.password)) {
     req.session.userId = user.id;
     res.json({ success: true, email: user.email });
-  } else {
-    res.status(401).json({ error: "邮箱或密码错误" });
-  }
+  } else res.status(401).json({ error: "邮箱或密码错误" });
 });
 
 app.post("/api/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.json({ success: true });
-  });
+  req.session.destroy(() => res.json({ success: true }));
 });
 
 app.get("/api/me", (req, res) => {
   if (req.session.userId) {
     const user: any = db.prepare("SELECT email FROM users WHERE id = ?").get(req.session.userId);
     res.json({ loggedIn: true, email: user?.email });
-  } else {
-    res.json({ loggedIn: false });
-  }
+  } else res.json({ loggedIn: false });
 });
 
 app.get("/api/history", isAuthenticated, (req, res) => {
   const history = db.prepare("SELECT * FROM history WHERE user_id = ? ORDER BY created_at DESC").all(req.session.userId);
-  res.json(history.map((h: any) => ({
-    ...h,
-    wylq_data: JSON.parse(h.wylq_data)
-  })));
+  res.json(history.map((h: any) => ({ ...h, wylq_data: JSON.parse(h.wylq_data) })));
 });
 
-// ==========================================
-// API Routes - Core
-// ==========================================
-
 app.post("/api/calculate", (req, res) => {
-  console.log("Received calculation request:", req.body);
   try {
     const { year, month, day } = req.body;
-    if (!year || !month || !day) {
-      return res.status(400).json({ error: "请求参数不完整 (year/month/day)" });
-    }
-
+    if (!year || !month || !day) return res.status(400).json({ error: "请求参数不完整" });
     const birthDate = new Date(year, month - 1, day, 12, 0);
     const calc = new WuYunLiuQi(birthDate);
     const engine = new AHIEngine(birthDate);
-
-    // Summary
     const yf = calc.getYearFortune();
     const ce = calc.getClimaticEffect();
-    if (!ce) {
-      return res.status(500).json({ error: "无法计算该年份的气候效应 (Climatic Effect)" });
-    }
+    if (!ce) return res.status(500).json({ error: "无法计算气候效应" });
     const fortune = calc.getCurrentFortune();
     const qi = calc.getCurrentQi();
-
     const wylq_summary = {
       ganzhi: `${calc.stem.char}${calc.branch.char}年`,
       suiyun: `${yf.description} (${yf.element})`,
@@ -639,35 +659,17 @@ app.post("/api/calculate", (req, res) => {
       daily_fortune: `第 ${fortune.step_index} 运 | 主: ${fortune.host} | 客: ${fortune.guest}`,
       daily_qi: `第 ${qi.step_index} 气 | 主: ${qi.host} | 客: ${qi.guest}`
     };
-
-    // K-line data
     const kline_data = [];
     let currentHealth = engine.baseScore;
-
     for (let age = 1; age <= 60; age++) {
       const calcYear = year + age - 1;
       const impact = engine.calculateYearAhi(calcYear);
-
-      let lifecycleDrift = 0;
-      if (age >= 1 && age <= 20) lifecycleDrift = 0.8;
-      else if (age >= 21 && age <= 40) lifecycleDrift = 0.0;
-      else if (age >= 41 && age <= 50) lifecycleDrift = -0.8;
-      else lifecycleDrift = -1.5;
-
+      let lifecycleDrift = age <= 20 ? 0.6 : (age <= 40 ? 0.0 : (age <= 50 ? -0.8 : -1.2));
       const dynamicBase = (currentHealth * 0.6) + (engine.baseScore * 0.4);
-      let closeScore = dynamicBase + impact + lifecycleDrift;
-      closeScore = Math.max(0, Math.min(100, closeScore));
-
-      kline_data.push({
-        age,
-        open: parseFloat(currentHealth.toFixed(2)),
-        close: parseFloat(closeScore.toFixed(2))
-      });
-
+      let closeScore = Math.max(0, Math.min(100, dynamicBase + impact + lifecycleDrift));
+      kline_data.push({ age, open: parseFloat(currentHealth.toFixed(2)), close: parseFloat(closeScore.toFixed(2)) });
       currentHealth = closeScore;
     }
-
-    // Save to history if logged in
     let historyId = null;
     if (req.session.userId) {
       const birthDateStr = `${year}-${month}-${day}`;
@@ -676,119 +678,105 @@ app.post("/api/calculate", (req, res) => {
         .run(req.session.userId, birthDateStr, wylqDataStr, engine.baseScore);
       historyId = result.lastInsertRowid;
     }
-
     res.json({ wylq_summary, kline_data, base_score: engine.baseScore, historyId });
   } catch (error: any) {
-    console.error(error);
     res.status(500).json({ error: error.message });
   }
 });
 
-const SANYIN_KNOWLEDGE = `
-【一、 健康指数(AHI)算法与加权规则解析】
-告诉用户，其0-60岁的健康K线图并非随机生成，而是基于以下严密的中医运气学数学模型计算得出：
+app.post("/api/insight/start", (req, res) => {
+  const { age, gender } = req.body;
+  if (!age || !gender) return res.status(400).json({ error: "请提供年龄段和性别" });
+  const systemPrompt = `你是一位中医专家，同时是大型医院的中医主治医生，你正在门诊进行坐诊。下面的资料是最新的关于中医体质学说的论文。
+${CONSTITUTION_KNOWLEDGE_BASE}
+首先请你阅读该论文，并对其进行理解吸收。随后请你根据该论文中的内容，经过十轮与用户的问诊，旨在通过这些问诊对所有人群进行体质分类。
+请注意你的问诊应当围绕下方论文中的方向进行，围绕论文中的体质判断方法，准确的判断出该用户的体质。
 
-1. 个人基准分 (Base Score)：
-   - 基础分为50分。
-   - 根据出生日的“主客加临”吉凶决定先天底子：主客相生或同气 +10分；主气克客气 -15分；客气克主气 -10分。
-   - 特殊加临：少阴君火为客气，少阳相火为主气 +8分；少阳相火为客气，少阴君火为主气 -8分。
+要求：
+1. 由你发起提问。
+2. 提问必须简洁明了，直击重点，不要有冗长的开场白或过多的感性描述。每轮只提 1-2 个核心问题。
+3. 当你经过十轮提问后，需要确定用户的表述的情况和九种体质各有多少相关度，严格按总分100分，各种体质具体内容计算得出分数，并且严格按照下面这样的方式给出结论：
+<用户体质：阴虚质80分，平和质10分，气郁质5分，阳虚质5分，痰湿质0分，血瘀质0分，湿热质0分，气虚质0分，特禀质0分>
+4. 接下来第一条消息，你应该向用户问好，你已经得到了ta的年龄段为${age}，性别为${gender}，这次前往门诊是想要进行体质辨识，请根据这些信息开始问诊。
+5. 在问诊结束后，输出包含结论的回话，并且结合论文与用户回答，向用户介绍其得分不为0分的体质，并重点介绍高分体质及其问诊结果中的对应症状。
+6. 严禁输出任何关于“辨证施治”、“食疗建议”、“中药调理”或“寻求医生建议”的免责声明或后续引导文字。
+7. 专注于您的角色，当用户询问与本次问诊无关的话题时，您需要将话题引到问诊本身，并同时拒绝回答无关问题。`;
+  req.session.insightMessages = [{ role: "system", content: systemPrompt }];
+  req.session.save((err) => {
+    if (err) return res.status(500).json({ error: "会话保存失败" });
+    res.json({ success: true });
+  });
+});
 
-2. 年度流年碰撞分 (Impact Score)：
-   - **五运碰撞 (占30%)**：
-     - 岁运总碰撞 (90%)：流年岁运与先天大运同气+25分；相生+18分；相克-22分。若流年太过且克制用户弱脏，额外-15分；流年不及但生助用户强脏，反弹+10分。
-     - 五运步匹配 (10%)：计算流年5步客运与出生主运的生克平均分。
-   - **六气碰撞 (占70%)**：
-     - 司天在泉总碰撞 (25%)：流年天地之气与出生主气三阴三阳相同+22分；天气生人+16分。司天或在泉克制出生主气或弱脏，各-28分。
-     - 司天主运格局 (75%)：平气之年+22分；岁会之年+20分；逆气之年（运生气）-15分；不和之年（运克气）-20分；天刑之年（气克运，最凶险）-28分；同化之年（天符）-12分。
+app.post("/api/insight/chat", async (req, res) => {
+  const { message, history, age, gender } = req.body;
+  if (!message) return res.status(400).json({ error: "消息不能为空" });
+  try {
+    const apiKey = process.env.DASHSCOPE_API_KEY || process.env.API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "服务器未配置 API Key" });
+    let messages = [];
+    if ((history && Array.isArray(history)) || (age && gender)) {
+      const safeHistory = Array.isArray(history) ? history : [];
+      const systemPrompt = `你是一位中医专家，同时是大型医院的中医主治医生，你正在门诊进行坐诊。下面的资料是最新的关于中医体质学说的论文。
+${CONSTITUTION_KNOWLEDGE_BASE}
+首先请你阅读该论文，并对其进行理解吸收。随后请你根据该论文中的内容，经过十轮与用户的问诊，旨在通过这些问诊对所有人群进行体质分类。
+请注意你的问诊应当围绕下方论文中的方向进行，围绕论文中的体质判断方法，准确的判断出该用户的体质。
 
-3. 动态生命周期与健康惯性：
-   - 当年最终收盘价 = (去年健康分*0.6 + 先天基准分*0.4) + 流年碰撞净分 + 年龄漂移值。
-   - 年龄漂移值遵循《黄帝内经》生长壮老已规律：1-20岁(生长期)+0.8分；21-40岁(鼎盛期)+0.0分；41-50岁(衰退初期)-0.8分；51-60岁(衰老期)-1.5分。
-   - 分数被严格限制在0-100分之间。
+要求：
+1. 由你发起提问。
+2. 提问必须简洁明了，直击重点，不要有冗长的开场白或过多的感性描述。每轮只提 1-2 个核心问题。
+3. 当你经过十轮提问后，需要确定用户的表述的情况和九种体质各有多少相关度，严格按总分100分，各种体质具体内容计算得出分数，并且严格按照下面按照下面这样的方式给出结论：
+<用户体质：阴虚质80分，平和质10分，气郁质5分，阳虚质5分，痰湿质0分，血瘀质0分，湿热质0分，气虚质0分，特禀质0分>
+4. 接下来第一条消息，你应该向用户问好，你已经得到了ta的年龄段为${age || '未知'}，性别为${gender || '未知'}，这次前往门诊是想要进行体质辨识，请根据这些信息开始问诊。
+5. 在问诊结束后，输出包含结论的回话，并且结合论文与用户回答，向用户介绍其得分不为0分的体质，并重点介绍高分体质及其问诊结果中的对应症状。
+6. 严禁输出任何关于“辨证施治”、“食疗建议”、“中药调理”或“寻求医生建议”的免责声明或后续引导文字。
+7. 专注于您的角色，当用户询问与本次问诊无关的话题时，您需要将话题引到问诊本身，并同时拒绝回答无关问题。`;
+      messages = [{ role: "system", content: systemPrompt }, ...safeHistory.map((m: any) => ({ role: m.role === "user" ? "user" : "assistant", content: m.content })), { role: "user", content: message }];
+    } else if (req.session.insightMessages) {
+      req.session.insightMessages.push({ role: "user", content: message });
+      messages = req.session.insightMessages.map(m => ({ role: m.role === "system" ? "system" : (m.role === "user" ? "user" : "assistant"), content: m.content }));
+    } else return res.status(400).json({ error: "会话已过期" });
 
-【二、《三因司天方》核心理论知识库（严禁向用户推荐方药名称）】
-（此处省略部分重复文本以节省空间，但在实际代码中应包含完整内容）
-《运气总说》引张介宾语，强调运气非“无益于医”，而是“岁气之流行，即安危之关系”。岁运有太过、不及，六气有胜复、逆从，失中和则致病。民病因“众人而患同病”，非偶然，乃运气使然。
-《司天方原叙》云：“五运六气，乃天地阴阳运行升降之常道也。五运流行，有太过不及之异；六气升降，有逆从胜复之差。凡不合于政令德化者，则为变眚，皆能病人……前哲知天地有余不足，违戾之气，还以天道所生德味而平治之。”
-运有代谢，气有应候；太过泻之，不及补之；本气正方治之，客气加临则分病证加减。缪问补充：“人生于地，气应于天……衰则所胜妄行，己虚而彼实；盛则薄所不胜，己实而虚……无盛盛，无虚虚……有者求之，无者求之。盛者责之，虚者责之。”
-（包含十天干、十二地支对应病机...）
-`;
+    const response = await axios.post("https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation", {
+      model: "qwen-turbo",
+      input: { messages: messages },
+      parameters: { result_format: "message" }
+    }, { headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" } });
+
+    if (response.data?.output?.choices) {
+      const reply = response.data.output.choices[0].message.content;
+      if (req.session.insightMessages) {
+        req.session.insightMessages.push({ role: "assistant", content: reply });
+        req.session.save();
+      }
+      res.json({ reply });
+    } else res.status(500).json({ error: "AI 响应异常" });
+  } catch (error: any) {
+    res.status(500).json({ error: "交流中断" });
+  }
+});
 
 app.post("/api/generate-report", async (req, res) => {
   try {
     const { wylq_summary, kline_data, historyId } = req.body;
     const apiKey = process.env.DASHSCOPE_API_KEY || process.env.API_KEY;
-
-    if (!apiKey) {
-      return res.status(500).json({ error: "服务器未配置 API Key (DASHSCOPE_API_KEY)" });
-    }
-
+    if (!apiKey) return res.status(500).json({ error: "服务器未配置 API Key" });
     const klineText = kline_data.map((d: any) => `${d.age}岁:${Math.round(d.close)}分`).join(", ");
-    
-    const prompt = `
-你是一位精通《黄帝内经》和《三因司天方》的顶级中医专家，同时也是一位深谙现代生活美学与身心管理的私人健康顾问。
-请为用户撰写一份【深度融合】古法智慧与现代审美的【全生命周期健康洞察报告】。
-
-${SANYIN_KNOWLEDGE}
-
-【用户先天体质与当日气象数据】：
-${JSON.stringify(wylq_summary, null, 2)}
-
-【用户 0-60岁 年度健康指数(AHI)收盘价变化 (满分100，70分为基准分)】：
-${klineText}
-
-请按照以下模块撰写，要求将专业术语自然融入现代语境，不要生硬拆分：
-
-【先天体质解码】：
-将运气学定义的体质（如岁运、司天）转化为一种“生命底色”的描述。比如将“木气偏胜”描述为“天生具备极强的生发力与探索欲，但也容易像春风般急躁，导致身体的‘电路系统’（肝胆）在高负载下产生燥热”。描述具体的身体反馈，如：容易熬夜后恢复慢、换季时皮肤或情绪的微妙波动等，让用户感到被精准“读心”。
-
-【K线原理解密】：
-用一种“宇宙共振”的视角，解释 AHI 指数如何捕捉天地节律对个体能量场的扰动。将人体类比为一个精密且感性的“生物接收器”，让用户理解健康波动是生命与自然环境之间的一场持续对话，而非冰冷的故障。
-
-【人生健康大势】：
-结合数据曲线，以“生命周期管理”的口吻，指出那些值得庆祝的“能量巅峰期”与需要静心调养的“系统维护期”。描述低分年份时，要像提醒老朋友一样，指出可能出现的“身心低电量”状态，并赋予其积极的意义（如：这是身体在提醒你进行深度的自我迭代）。
-
-【定制养生锦囊】：
-给出极具生活美感的建议。不要说“禁食生冷”，要说“给肠胃一场温暖的治愈仪式”；不要说“早睡早起”，要说“顺应自然的昼夜韵律，在子午时刻完成能量的闭环”。建议要具体、现代且有趣，比如针对其体质推荐某种特定的“情绪断舍离”方式或“节气冥想”。
-
-【极其重要的约束】：
-1. 严禁使用 Markdown 的加粗符号（**）、列表符号（- 或 *）或任何代码块。
-2. 严禁推荐具体方药名称。
-3. 严禁提及“千问”、“阿里”或任何 AI 模型的名称。
-4. 语言风格：专业、考究、灵动。展现尊贵感与亲和力。
-5. 直接输出纯文本。
-`;
-
-    const response = await axios.post(
-      "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation",
-      {
-        model: "qwen-turbo",
-        input: { prompt: prompt },
-        parameters: { result_format: "message" }
-      },
-      {
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    if (response.data && response.data.output && response.data.output.choices) {
+    const prompt = `你是一位精通《黄帝内经》和《三因司天方》的顶级中医专家。请为用户撰写一份【全生命周期健康洞察报告】。
+数据：${JSON.stringify(wylq_summary)}
+K线：${klineText}
+要求：1. 严禁Markdown加粗或列表。2. 严禁推荐具体方药。3. 严禁提及AI名称。4. 纯文本输出。`;
+    const response = await axios.post("https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation", {
+      model: "qwen-turbo",
+      input: { prompt: prompt },
+      parameters: { result_format: "message" }
+    }, { headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" } });
+    if (response.data?.output?.choices) {
       const report = response.data.output.choices[0].message.content;
-      
-      // Update specific history entry with report if historyId is provided
-      if (req.session.userId && historyId) {
-        db.prepare("UPDATE history SET report_text = ? WHERE id = ? AND user_id = ?")
-          .run(report, historyId, req.session.userId);
-      }
-
+      if (req.session.userId && historyId) db.prepare("UPDATE history SET report_text = ? WHERE id = ? AND user_id = ?").run(report, historyId, req.session.userId);
       res.json({ report });
-    } else {
-      res.status(500).json({ error: "AI 响应异常" });
-    }
+    } else res.status(500).json({ error: "AI 响应异常" });
   } catch (error: any) {
-    console.error(error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -796,31 +784,17 @@ ${klineText}
   // Vite middleware for development
   let vite: any;
   if (process.env.NODE_ENV !== "production") {
-    vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
+    vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(vite.middlewares);
   } else {
-    // Production: Serve static files from dist
     const distPath = path.resolve(__dirname, "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+    app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
   }
 
   const PORT = process.env.PORT || 3000;
-  const server = app.listen(Number(PORT), "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-
-  // Fix: Handle WebSocket upgrades for Vite HMR to eliminate console errors
-  if (vite) {
-    server.on('upgrade', (req, socket, head) => {
-      vite.ws.handleUpgrade(req, socket, head);
-    });
-  }
+  const server = app.listen(Number(PORT), "0.0.0.0", () => console.log(`Server running on port ${PORT}`));
+  if (vite) server.on('upgrade', (req, socket, head) => vite.ws.handleUpgrade(req, socket, head));
 }
 
 startServer();

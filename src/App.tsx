@@ -13,6 +13,7 @@ import {
   Clock,
   ArrowRight,
   Sparkles,
+  MessageSquare,
   Shield,
   Compass,
   Home,
@@ -25,6 +26,7 @@ import {
   Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactMarkdown from 'react-markdown';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -105,8 +107,18 @@ export default function App() {
   const [hasGeneratedReport, setHasGeneratedReport] = useState(false);
   const [currentHistoryId, setCurrentHistoryId] = useState<number | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'insight' | 'history' | 'profile'>('home');
   const [user, setUser] = useState<UserInfo>({ loggedIn: false });
+  
+  // AI Insight State
+  const [insightStep, setInsightStep] = useState<'form' | 'chat'>('form');
+  const [insightAge, setInsightAge] = useState('');
+  const [insightGender, setInsightGender] = useState('');
+  const [insightMessages, setInsightMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([]);
+  const [insightInput, setInsightInput] = useState('');
+  const [isInsightLoading, setIsInsightLoading] = useState(false);
+  const [constitutionData, setConstitutionData] = useState<any>(null);
+
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -328,6 +340,79 @@ export default function App() {
     } catch (err) {
       console.error("Delete failed", err);
       alert("删除失败");
+    }
+  };
+
+  const handleInsightStart = async () => {
+    if (!insightAge || !insightGender) return;
+    setIsInsightLoading(true);
+    try {
+      await axios.post('/api/insight/start', { age: insightAge, gender: insightGender });
+      setInsightStep('chat');
+      // Initial message from AI
+      const res = await axios.post('/api/insight/chat', { 
+        message: "你好",
+        age: insightAge,
+        gender: insightGender,
+        history: []
+      });
+      if (res.data.reply) {
+        setInsightMessages([{ role: 'assistant', content: res.data.reply }]);
+      } else {
+        throw new Error("AI 响应异常");
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.error || "启动失败，请稍后再试");
+      setInsightStep('form');
+    } finally {
+      setIsInsightLoading(false);
+    }
+  };
+
+  const handleInsightChat = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!insightInput.trim() || isInsightLoading) return;
+
+    const userMsg = insightInput;
+    setInsightInput('');
+    setInsightMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setIsInsightLoading(true);
+
+    try {
+      const res = await axios.post('/api/insight/chat', { 
+        message: userMsg,
+        history: insightMessages,
+        age: insightAge,
+        gender: insightGender
+      });
+      const reply = res.data.reply;
+      
+      if (!reply) throw new Error("AI 响应异常");
+
+      // Check for constitution result
+      const match = reply.match(/<用户体质：(.+?)>/);
+      if (match) {
+        const dataStr = match[1];
+        const parts = dataStr.split('，');
+        const scores: any = {};
+        parts.forEach((p: string) => {
+          const m = p.match(/(.+)质(\d+)分/);
+          if (m) scores[m[1]] = parseInt(m[2]);
+        });
+        setConstitutionData(scores);
+        // Auto scroll to result
+        setTimeout(() => {
+          document.getElementById('constitution-result')?.scrollIntoView({ behavior: 'smooth' });
+        }, 500);
+      }
+
+      setInsightMessages(prev => [...prev, { role: 'assistant', content: reply.replace(/<用户体质：.+?>/, '') }]);
+    } catch (err: any) {
+      console.error(err);
+      setInsightMessages(prev => [...prev, { role: 'assistant', content: "抱歉，交流中断，请稍后再试。" }]);
+    } finally {
+      setIsInsightLoading(false);
     }
   };
 
@@ -737,6 +822,209 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* AI Insight Section */}
+      <AnimatePresence>
+        {activeTab === 'insight' && (
+          <motion.section 
+            key="insight"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="py-32 px-6 max-w-4xl mx-auto min-h-screen"
+          >
+            <SectionHeader 
+              number="04" 
+              title="AI 洞察" 
+              subtitle="深度生命能量状态评估"
+            />
+
+            {insightStep === 'form' ? (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="glass-panel p-12 max-w-lg mx-auto space-y-12"
+              >
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-jade/10 flex items-center justify-center mx-auto">
+                    <Sparkles className="w-8 h-8 text-jade" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white serif">开启深度交流</h3>
+                  <p className="text-zinc-500 text-sm">请提供基础信息，以便东方体质分析师为您提供更精准的状态评估。</p>
+                </div>
+
+                <div className="space-y-8">
+                  <div className="space-y-4">
+                    <label className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">年龄段</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {['20岁以下', '20-35岁', '36-50岁', '50岁以上'].map(age => (
+                        <button
+                          key={age}
+                          onClick={() => setInsightAge(age)}
+                          className={cn(
+                            "px-4 py-3 rounded-xl border text-sm transition-all",
+                            insightAge === age 
+                              ? "bg-jade/10 border-jade text-jade" 
+                              : "bg-white/[0.02] border-white/5 text-zinc-400 hover:border-white/20"
+                          )}
+                        >
+                          {age}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">性别</label>
+                    <div className="flex gap-3">
+                      {['男', '女'].map(gender => (
+                        <button
+                          key={gender}
+                          onClick={() => setInsightGender(gender)}
+                          className={cn(
+                            "flex-1 px-4 py-3 rounded-xl border text-sm transition-all",
+                            insightGender === gender 
+                              ? "bg-jade/10 border-jade text-jade" 
+                              : "bg-white/[0.02] border-white/5 text-zinc-400 hover:border-white/20"
+                          )}
+                        >
+                          {gender}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleInsightStart}
+                  disabled={!insightAge || !insightGender || isInsightLoading}
+                  className="w-full btn-primary bg-jade hover:bg-jade/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isInsightLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "开始探索"}
+                </button>
+              </motion.div>
+            ) : (
+              <div className="space-y-8">
+                {/* Chat Container */}
+                <div className="glass-panel p-6 min-h-[500px] flex flex-col gap-6 overflow-hidden relative">
+                  <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar max-h-[600px]">
+                    {insightMessages.map((msg, i) => {
+                      const isLastMessage = i === insightMessages.length - 1;
+                      const hasResult = constitutionData && isLastMessage && msg.role === 'assistant';
+                      
+                      if (hasResult) return null; // Don't render the raw text bubble if we have the formatted report below
+
+                      return (
+                        <motion.div
+                          key={i}
+                          initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className={cn(
+                            "max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed",
+                            msg.role === 'user' 
+                              ? "ml-auto bg-white/[0.05] text-zinc-200" 
+                              : "mr-auto border-l-2 border-jade bg-transparent text-zinc-300 prose prose-invert prose-sm prose-jade max-w-none"
+                          )}
+                        >
+                          {msg.role === 'assistant' ? (
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          ) : (
+                            msg.content
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                    {isInsightLoading && (
+                      <div className="flex items-center gap-2 text-jade/50 text-xs font-mono uppercase tracking-widest">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        分析师正在思考...
+                      </div>
+                    )}
+                    {/* Radar Chart Interception */}
+                    {constitutionData && (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="glass-panel p-8 mt-8 border-jade/30 bg-jade/5 relative overflow-hidden"
+                      >
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-jade/50 to-transparent"></div>
+                        <h4 className="text-center text-xl font-bold text-white serif mb-8 flex items-center justify-center gap-3">
+                          <div className="w-8 h-[1px] bg-jade/30"></div>
+                          身体能量分布图谱
+                          <div className="w-8 h-[1px] bg-jade/30"></div>
+                        </h4>
+                        <div className="h-[400px]">
+                          <ReactECharts 
+                            option={{
+                              backgroundColor: 'transparent',
+                              radar: {
+                                indicator: Object.keys(constitutionData).map(key => ({ 
+                                  name: key, 
+                                  max: Math.max(...Object.values(constitutionData) as number[]) * 1.2 
+                                })),
+                                shape: 'circle',
+                                splitNumber: 5,
+                                axisName: { color: '#8E9299', fontSize: 10 },
+                                splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } },
+                                splitArea: { show: false },
+                                axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } }
+                              },
+                              series: [{
+                                type: 'radar',
+                                data: [{
+                                  value: Object.values(constitutionData),
+                                  name: '体质分布',
+                                  itemStyle: { color: '#00A86B' },
+                                  areaStyle: {
+                                    color: {
+                                      type: 'radial',
+                                      x: 0.5, y: 0.5, r: 0.5,
+                                      colorStops: [
+                                        { offset: 0, color: 'rgba(0, 168, 107, 0.1)' },
+                                        { offset: 1, color: 'rgba(0, 168, 107, 0.6)' }
+                                      ]
+                                    }
+                                  }
+                                }]
+                              }]
+                            }}
+                            style={{ height: '100%', width: '100%' }}
+                          />
+                        </div>
+                        <div className="mt-8 pt-8 border-t border-white/5 prose prose-invert prose-jade max-w-none prose-p:leading-relaxed prose-headings:serif prose-headings:text-jade prose-strong:text-gold">
+                          <ReactMarkdown>
+                            {insightMessages[insightMessages.length - 1].content.replace(/<用户体质：.+?>/, '')}
+                          </ReactMarkdown>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Input Area */}
+                  {!constitutionData && (
+                    <form onSubmit={handleInsightChat} className="relative mt-4">
+                      <input
+                        type="text"
+                        value={insightInput}
+                        onChange={(e) => setInsightInput(e.target.value)}
+                        placeholder="在此输入您的感受或回答..."
+                        className="w-full bg-white/[0.02] border border-white/10 rounded-2xl px-6 py-4 text-sm text-white focus:outline-none focus:border-jade/50 transition-all pr-16"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!insightInput.trim() || isInsightLoading}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-3 text-jade hover:bg-jade/10 rounded-xl transition-all disabled:opacity-30"
+                      >
+                        <ArrowRight className="w-5 h-5" />
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </div>
+            )}
+          </motion.section>
+        )}
+      </AnimatePresence>
+
       {/* History Section */}
       <AnimatePresence>
         {activeTab === 'history' && (
@@ -913,6 +1201,7 @@ export default function App() {
         <div className="glass-panel px-4 py-3 flex items-center justify-around md:justify-center md:gap-12 backdrop-blur-2xl bg-obsidian/40 border-white/10 shadow-2xl">
           {[
             { id: 'home', icon: Home, label: '首页' },
+            { id: 'insight', icon: Sparkles, label: '洞察' },
             { id: 'history', icon: History, label: '历史' },
             { id: 'profile', icon: User, label: '我的' }
           ].map((item) => (
