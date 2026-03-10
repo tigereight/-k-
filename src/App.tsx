@@ -891,6 +891,13 @@ export default function App() {
     }
   }, [activeTab, user.loggedIn]);
 
+  // Scroll chat to bottom
+  useEffect(() => {
+    if (activeTab === 'insight' && insightStep === 'chat') {
+      document.getElementById('chat-end')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [insightMessages, activeTab, insightStep]);
+
   const loadHistory = async () => {
     setIsLoadingHistory(true);
     try {
@@ -2035,6 +2042,222 @@ export default function App() {
                 </motion.div>
               )}
             </AnimatePresence>
+          </motion.section>
+        )}
+
+        {activeTab === 'insight' && (
+          <motion.section
+            key="insight"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="py-32 px-6 max-w-4xl mx-auto min-h-screen"
+          >
+            <SectionHeader 
+              number="07" 
+              title="体质辨识" 
+              subtitle="基于中医体质学说，通过 AI 问诊深度解析您的生命底色。"
+            />
+
+            {insightStep === 'form' ? (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="glass-panel p-8 md:p-12 space-y-8 max-w-2xl mx-auto"
+              >
+                <div className="text-center space-y-4 mb-8">
+                  <div className="w-20 h-20 rounded-full bg-jade/10 flex items-center justify-center mx-auto">
+                    <Sparkles className="w-10 h-10 text-jade" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white serif">开启 AI 问诊</h3>
+                  <p className="text-zinc-500 text-sm">请提供您的基本信息，AI 专家将为您进行深度体质辨识。</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="text-[10px] text-zinc-500 uppercase tracking-widest ml-1">年龄段</label>
+                    <select 
+                      value={insightAge}
+                      onChange={(e) => setInsightAge(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-jade/50 transition-all"
+                    >
+                      <option value="" className="bg-obsidian">请选择年龄段</option>
+                      <option value="少年 (0-18岁)" className="bg-obsidian">少年 (0-18岁)</option>
+                      <option value="青年 (19-35岁)" className="bg-obsidian">青年 (19-35岁)</option>
+                      <option value="中年 (36-55岁)" className="bg-obsidian">中年 (36-55岁)</option>
+                      <option value="中老年 (56-65岁)" className="bg-obsidian">中老年 (56-65岁)</option>
+                      <option value="老年 (66岁以上)" className="bg-obsidian">老年 (66岁以上)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] text-zinc-500 uppercase tracking-widest ml-1">性别</label>
+                    <select 
+                      value={insightGender}
+                      onChange={(e) => setInsightGender(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-jade/50 transition-all"
+                    >
+                      <option value="" className="bg-obsidian">请选择性别</option>
+                      <option value="男" className="bg-obsidian">男</option>
+                      <option value="女" className="bg-obsidian">女</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleInsightStart}
+                  disabled={!insightAge || !insightGender || isInsightLoading}
+                  className="btn-primary w-full py-5 flex items-center justify-center gap-3 group"
+                >
+                  {isInsightLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform" />}
+                  <span>开始问诊</span>
+                </button>
+              </motion.div>
+            ) : (
+              <div className="space-y-12">
+                {/* Chat Interface */}
+                <div className="glass-panel flex flex-col h-[600px] overflow-hidden border-white/10 bg-black/20">
+                  <div className="p-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-jade rounded-full animate-pulse"></div>
+                      <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">AI 专家坐诊中</span>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setInsightStep('form');
+                        setInsightMessages([]);
+                        setConstitutionData(null);
+                      }}
+                      className="text-[10px] text-zinc-600 hover:text-white transition-colors uppercase tracking-widest"
+                    >
+                      重新开始
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+                    {insightMessages.map((msg, idx) => (
+                      <motion.div 
+                        key={idx}
+                        initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className={cn(
+                          "flex gap-4 max-w-[85%]",
+                          msg.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
+                          msg.role === 'user' ? "bg-jade/20 text-jade" : "bg-gold/20 text-gold"
+                        )}>
+                          {msg.role === 'user' ? <User className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
+                        </div>
+                        <div className={cn(
+                          "p-4 rounded-2xl text-sm leading-relaxed",
+                          msg.role === 'user' ? "bg-jade/10 text-white border border-jade/20" : "bg-white/[0.03] text-zinc-300 border border-white/10"
+                        )}>
+                          <Markdown>{msg.content}</Markdown>
+                        </div>
+                      </motion.div>
+                    ))}
+                    {isInsightLoading && (
+                      <div className="flex gap-4 mr-auto">
+                        <div className="w-8 h-8 rounded-full bg-gold/20 text-gold flex items-center justify-center animate-pulse">
+                          <Activity className="w-4 h-4" />
+                        </div>
+                        <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10">
+                          <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
+                        </div>
+                      </div>
+                    )}
+                    <div id="chat-end" />
+                  </div>
+
+                  <form onSubmit={handleInsightChat} className="p-4 border-t border-white/5 bg-white/[0.02]">
+                    <div className="relative">
+                      <input 
+                        type="text"
+                        value={insightInput}
+                        onChange={(e) => setInsightInput(e.target.value)}
+                        placeholder="输入您的回答..."
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-6 pr-16 py-4 text-white focus:outline-none focus:border-jade/50 transition-all"
+                      />
+                      <button 
+                        type="submit"
+                        disabled={!insightInput.trim() || isInsightLoading}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-3 text-jade hover:scale-110 transition-transform disabled:opacity-30"
+                      >
+                        <ArrowRight className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Constitution Result */}
+                {constitutionData && (
+                  <motion.div 
+                    id="constitution-result"
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-8"
+                  >
+                    <div className="text-center space-y-4">
+                      <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-gold/10 border border-gold/20 text-gold text-xs font-bold uppercase tracking-widest">
+                        <ShieldCheck className="w-4 h-4" />
+                        辨识结果已生成
+                      </div>
+                      <h2 className="text-3xl font-bold text-white serif">中医体质能量分布</h2>
+                    </div>
+
+                    <div className="glass-panel p-8 md:p-12">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                        <div className="h-[300px]">
+                          <ReactECharts 
+                            option={{
+                              backgroundColor: 'transparent',
+                              radar: {
+                                indicator: Object.keys(constitutionData).map(name => ({ name, max: 100 })),
+                                splitArea: { show: false },
+                                axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+                                splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+                              },
+                              series: [{
+                                type: 'radar',
+                                data: [{
+                                  value: Object.values(constitutionData),
+                                  name: '体质得分',
+                                  itemStyle: { color: '#00A86B' },
+                                  areaStyle: { color: 'rgba(0, 168, 107, 0.2)' }
+                                }]
+                              }]
+                            }}
+                            style={{ height: '100%', width: '100%' }}
+                          />
+                        </div>
+                        <div className="space-y-6">
+                          {Object.entries(constitutionData).sort((a: any, b: any) => b[1] - a[1]).map(([name, score]: any) => (
+                            <div key={name} className="space-y-2">
+                              <div className="flex justify-between text-xs uppercase tracking-widest">
+                                <span className={cn("font-bold", score > 60 ? "text-jade" : "text-zinc-500")}>{name}</span>
+                                <span className="text-zinc-300 font-mono">{score} 分</span>
+                              </div>
+                              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <motion.div 
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${score}%` }}
+                                  className={cn(
+                                    "h-full rounded-full",
+                                    score > 60 ? "bg-jade" : "bg-zinc-700"
+                                  )}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            )}
           </motion.section>
         )}
       </AnimatePresence>
