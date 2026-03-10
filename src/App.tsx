@@ -125,7 +125,7 @@ const PalaceCell = ({ palace, isCurrentYear }: { palace: any; isCurrentYear: boo
       }}
       whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
       className={cn(
-        "glass-panel p-1.5 md:p-2 flex flex-col h-full transition-all border-white/10 relative group overflow-hidden bg-zinc-900/60",
+        "glass-panel p-1 md:p-2 flex flex-col h-full transition-all border-white/10 relative group overflow-hidden bg-zinc-900/60",
         isCurrentYear && "border-jade/40 ring-1 ring-jade/20 bg-jade/[0.02]",
         palace.isBodyPalace && "bg-jade/[0.04]"
       )}
@@ -133,18 +133,18 @@ const PalaceCell = ({ palace, isCurrentYear }: { palace: any; isCurrentYear: boo
       {/* Top Section: Stars */}
       <div className="flex justify-between gap-0.5 flex-1 min-h-0">
         {/* Left: Major Stars */}
-        <div className="flex flex-col gap-0">
+        <div className="flex flex-col gap-0 overflow-hidden">
           {majorStars.map((star: any, idx: number) => (
             <div key={idx} className="flex items-baseline gap-0.5">
               <span className={cn(
-                "text-[12px] md:text-[13px] font-bold serif leading-tight",
+                "text-[10px] sm:text-[11px] md:text-[13px] font-bold serif leading-tight truncate",
                 ['紫微', '天府', '太阳', '太阴'].includes(star.name) ? "text-gold" : "text-white"
               )}>
                 {star.name}
               </span>
               {star.brightness && (
                 <span className={cn(
-                  "text-[8px] md:text-[9px] font-bold scale-90 origin-left",
+                  "text-[7px] md:text-[9px] font-bold scale-90 origin-left",
                   ['庙', '旺', '得'].includes(star.brightness) ? "text-jade" : 
                   ['陷', '不'].includes(star.brightness) ? "text-red-500" : "text-zinc-500"
                 )}>
@@ -157,18 +157,18 @@ const PalaceCell = ({ palace, isCurrentYear }: { palace: any; isCurrentYear: boo
         </div>
 
         {/* Right: Minor Stars */}
-        <div className="flex flex-col items-end gap-0 text-right">
+        <div className="flex flex-col items-end gap-0 text-right overflow-hidden">
           {minorStars.map((star: any, idx: number) => (
             <div key={idx} className="flex items-baseline gap-0.5 justify-end">
               <StarMutagenBadge mutagen={star.mutagen} />
               <span className={cn(
-                "text-[9px] md:text-[10px] font-medium leading-tight",
+                "text-[8px] sm:text-[9px] md:text-[10px] font-medium leading-tight truncate",
                 ['火星', '铃星', '擎羊', '陀罗', '地空', '地劫'].includes(star.name) ? "text-red-400" : "text-zinc-300"
               )}>
                 {star.name}
               </span>
               {star.brightness && (
-                <span className="text-[7px] md:text-[8px] text-zinc-500 scale-75 origin-right">{star.brightness}</span>
+                <span className="text-[6px] md:text-[8px] text-zinc-500 scale-75 origin-right">{star.brightness}</span>
               )}
             </div>
           ))}
@@ -176,43 +176,41 @@ const PalaceCell = ({ palace, isCurrentYear }: { palace: any; isCurrentYear: boo
       </div>
 
       {/* Middle Section: Adjective Stars & Ages */}
-      <div className="my-1 flex flex-col gap-0.5">
-        <div className="flex flex-wrap gap-x-1 gap-y-0.5 leading-none">
-          {adjectiveStars.slice(0, 10).map((star: any, idx: number) => (
-            <span key={idx} className="text-[8px] md:text-[9px] text-zinc-500 opacity-60 flex items-baseline gap-0.5">
+      <div className="my-0.5 md:my-1 flex flex-col gap-0.5">
+        <div className="flex flex-wrap gap-x-0.5 md:gap-x-1 gap-y-0 leading-none h-3 md:h-auto overflow-hidden">
+          {adjectiveStars.slice(0, 6).map((star: any, idx: number) => (
+            <span key={idx} className="text-[7px] md:text-[9px] text-zinc-500 opacity-60 flex items-baseline gap-0.5 whitespace-nowrap">
               {star.name}
-              {star.brightness && <span className="text-[7px] scale-75 origin-left">{star.brightness}</span>}
-              {star.mutagen && <span className="text-jade/80 font-bold scale-75 origin-left">{star.mutagen}</span>}
             </span>
           ))}
         </div>
         
         <div className="flex justify-between items-center">
-           <div className="flex gap-0.5 md:gap-1">
-            {palace.ages.slice(0, 6).map((age: number, i: number) => (
-              <span key={i} className="text-[8px] md:text-[9px] font-mono text-zinc-600">{age}</span>
+           <div className="flex gap-0.5 md:gap-1 overflow-hidden">
+            {palace.ages.slice(0, 4).map((age: number, i: number) => (
+              <span key={i} className="text-[7px] md:text-[9px] font-mono text-zinc-600">{age}</span>
             ))}
           </div>
-          <span className="text-[9px] md:text-[10px] text-zinc-500 font-mono italic">{palace.changsheng12}</span>
+          <span className="text-[7px] md:text-[10px] text-zinc-500 font-mono italic truncate">{palace.changsheng12}</span>
         </div>
       </div>
 
       {/* Bottom Section: Decadal & Palace Info */}
       <div className="pt-0.5 border-t border-white/5 flex justify-between items-end">
-        <div className="flex flex-col">
-          <span className="text-[10px] md:text-[11px] text-zinc-300 font-mono font-bold leading-none">
-            {palace.decadal.range[0]} - {palace.decadal.range[1]}
+        <div className="flex flex-col overflow-hidden">
+          <span className="text-[8px] md:text-[11px] text-zinc-300 font-mono font-bold leading-none truncate">
+            {palace.decadal.range[0]}-{palace.decadal.range[1]}
           </span>
-          <span className="text-[9px] md:text-[10px] font-bold text-jade/90 serif mt-0.5">
+          <span className="text-[8px] md:text-[10px] font-bold text-jade/90 serif mt-0.5 truncate">
             {palace.name}{palace.isBodyPalace ? '·身' : ''}
           </span>
         </div>
         
-        <div className="flex flex-col items-end">
+        <div className="flex flex-col items-end overflow-hidden">
           {isCurrentYear && (
-            <span className="text-[7px] md:text-[8px] text-jade font-black uppercase tracking-tighter animate-pulse mb-0.5">流年</span>
+            <span className="text-[6px] md:text-[8px] text-jade font-black uppercase tracking-tighter animate-pulse mb-0.5">流年</span>
           )}
-          <span className="text-[9px] md:text-[10px] font-mono text-zinc-500 font-bold leading-none">
+          <span className="text-[8px] md:text-[10px] font-mono text-zinc-500 font-bold leading-none truncate">
             {palace.heavenlyStem}{palace.earthlyBranch}
           </span>
         </div>
@@ -228,14 +226,14 @@ const MatrixAstrolabe = ({ data }: { data: any }) => {
   const currentYearBranch = data.yearly?.earthlyBranch;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-4 relative">
+    <div className="max-w-7xl mx-auto px-1 md:px-4 py-4 relative">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-jade/[0.01] rounded-full blur-[120px] pointer-events-none" />
       
       <motion.div 
         initial="hidden"
         animate="visible"
         variants={{ visible: { transition: { staggerChildren: 0.01 } } }}
-        className="grid grid-cols-4 grid-rows-4 gap-1 md:gap-1.5 relative z-10 aspect-square md:aspect-auto md:h-[750px]"
+        className="grid grid-cols-4 grid-rows-4 gap-0.5 md:gap-1.5 relative z-10 aspect-square md:aspect-auto md:h-[750px]"
       >
         {gridMap.map((palaceIdx, gridIdx) => {
           if (palaceIdx !== null) {
@@ -250,33 +248,38 @@ const MatrixAstrolabe = ({ data }: { data: any }) => {
           
           if (gridIdx === 5) {
             return (
-              <div key="center" className="col-span-2 row-span-2 glass-panel p-3 md:p-5 flex flex-col justify-between relative overflow-hidden border-white/5 bg-zinc-900/30">
-                <div className="relative z-10 flex flex-col h-full text-[10px] md:text-[11px]">
-                  <div className="grid grid-cols-2 gap-x-2 md:gap-x-4 gap-y-1 md:gap-y-2">
+              <div key="center" className="col-span-2 row-span-2 glass-panel p-2 md:p-5 flex flex-col justify-between relative overflow-hidden border-white/5 bg-zinc-900/30">
+                <div className="relative z-10 flex flex-col h-full text-[8px] sm:text-[9px] md:text-[11px]">
+                  <div className="grid grid-cols-2 gap-x-1 md:gap-x-4 gap-y-0.5 md:gap-y-2">
                     <div className="space-y-0.5 md:space-y-1">
-                      <p className="text-zinc-500">四柱：<span className="text-gold font-bold">{data.chineseDate}</span></p>
-                      <p className="text-zinc-500">阳历：<span className="text-zinc-200">{data.solarDate}</span></p>
-                      <p className="text-zinc-500">农历：<span className="text-zinc-200">{data.lunarDate}</span></p>
-                      <p className="text-zinc-500">时辰：<span className="text-zinc-200">{data.time}</span></p>
-                      <p className="text-zinc-500">生肖：<span className="text-zinc-200">{data.zodiac}</span></p>
-                      <p className="text-zinc-500">星座：<span className="text-zinc-200">{data.sign}</span></p>
+                      <p className="text-zinc-500 truncate">四柱：<span className="text-gold font-bold">{data.chineseDate}</span></p>
+                      <p className="text-zinc-500 truncate">阳历：<span className="text-zinc-200">{data.solarDate}</span></p>
+                      <p className="text-zinc-500 truncate">农历：<span className="text-zinc-200">{data.lunarDate}</span></p>
+                      <p className="text-zinc-500 truncate">时辰：<span className="text-zinc-200">{data.time}</span></p>
+                      <p className="text-zinc-500 truncate">生肖：<span className="text-zinc-200">{data.zodiac}</span></p>
+                      <p className="text-zinc-500 truncate">星座：<span className="text-zinc-200">{data.sign}</span></p>
                     </div>
-                    <div className="space-y-0.5 md:space-y-1 border-l border-white/5 pl-2 md:pl-4">
-                      <p className="text-zinc-500">命主：<span className="text-jade font-bold">{data.soul}</span></p>
-                      <p className="text-zinc-500">身主：<span className="text-jade font-bold">{data.body}</span></p>
-                      <p className="text-zinc-500">五行局：<span className="text-gold font-bold">{data.fiveElementsClass}</span></p>
-                      <p className="text-zinc-500">阴阳：<span className="text-zinc-200">{data.gender === 'male' ? '乾' : '坤'}造 / {data.yinYang || data.lunarDate?.yinYang || '未知'}</span></p>
+                    <div className="space-y-0.5 md:space-y-1 border-l border-white/5 pl-1 md:pl-4">
+                      <p className="text-zinc-500 truncate">命主：<span className="text-jade font-bold">{data.soul}</span></p>
+                      <p className="text-zinc-500 truncate">身主：<span className="text-jade font-bold">{data.body}</span></p>
+                      <p className="text-zinc-500 truncate">五行局：<span className="text-gold font-bold">{data.fiveElementsClass}</span></p>
+                      <p className="text-zinc-500 truncate">阴阳：<span className="text-zinc-200">{data.gender === 'male' ? '乾' : '坤'}造 / {data.yinYang || data.lunarDate?.yinYang || '未知'}</span></p>
                     </div>
                   </div>
                   
-                  <div className="mt-auto pt-2 md:pt-4 border-t border-white/5 flex justify-between items-end">
+                  <div className="mt-auto pt-1 md:pt-4 border-t border-white/5 flex justify-between items-end">
                     <div className="space-y-0.5">
-                       <p className="text-[8px] md:text-[9px] font-mono text-zinc-600 tracking-widest uppercase">Powered by iztro</p>
+                       <p className="text-[6px] md:text-[9px] font-mono text-zinc-600 tracking-widest uppercase">Powered by iztro</p>
                     </div>
                     <div className="text-right">
-                       <h3 className="text-lg md:text-xl font-bold text-white serif tracking-tighter">生命全息看板</h3>
+                       <h3 className="text-xs sm:text-sm md:text-xl font-bold text-white serif tracking-tighter">生命全息看板</h3>
                     </div>
                   </div>
+                </div>
+                
+                {/* Decorative background element */}
+                <div className="absolute -bottom-4 -right-4 opacity-5 pointer-events-none">
+                  <Activity className="w-16 h-16 md:w-32 md:h-32 text-gold" />
                 </div>
               </div>
             );
@@ -410,6 +413,49 @@ export default function App() {
     }
   };
   
+  const generateSpatialReport = async () => {
+    setIsGeneratingSpatialReport(true);
+    setSpatialReport(null);
+
+    try {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const placements: any[] = [];
+      
+      spatialRooms.forEach(r => {
+        const direction = getDirection(r.x, r.y, r.w, r.h, canvas.width, canvas.height, compassRotation);
+        placements.push({ type: 'room', value: r.value, direction });
+      });
+
+      spatialPersons.forEach(p => {
+        const bedroom = spatialRooms[p.bedroomId];
+        if (bedroom) {
+          const direction = getDirection(bedroom.x, bedroom.y, bedroom.w, bedroom.h, canvas.width, canvas.height, compassRotation);
+          placements.push({ type: 'person', value: p.value, direction });
+        }
+      });
+
+      const response = await axios.post('/api/generate-spatial-report', {
+        placements
+      });
+
+      if (response.data.riskScores) {
+        setSpatialRiskScores(response.data.riskScores);
+      }
+      setSpatialReport(response.data.report);
+      
+      setTimeout(() => {
+        document.getElementById('spatial-report-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (err: any) {
+      console.error("Spatial report generation failed", err);
+      setSpatialReport("生成空间分析报告时发生错误，请稍后再试。");
+    } finally {
+      setIsGeneratingSpatialReport(false);
+    }
+  };
+
   const [isCalculating, setIsCalculating] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   
@@ -417,10 +463,397 @@ export default function App() {
   const [hasGeneratedReport, setHasGeneratedReport] = useState(false);
   const [currentHistoryId, setCurrentHistoryId] = useState<number | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'home' | 'matrix' | 'insight' | 'history' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'matrix' | 'insight' | 'spatial' | 'history' | 'profile'>('home');
   const [user, setUser] = useState<UserInfo>({ loggedIn: false });
   
-  // AI Insight State
+  // Spatial Energy State
+  const [spatialRooms, setSpatialRooms] = useState<any[]>([]);
+  const [spatialPersons, setSpatialPersons] = useState<any[]>([]);
+  const [compassRotation, setCompassRotation] = useState(0);
+  const [selectedRoomIdx, setSelectedRoomIdx] = useState<number | null>(null);
+  const [selectedPersonIdx, setSelectedPersonIdx] = useState<number | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [dragMode, setDragMode] = useState<string | null>(null);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [originalState, setOriginalState] = useState<any>(null);
+
+  const ROOM_MIN_SIZE = 60;
+  const ROOM_DEFAULT_SIZE = 100;
+  const PERSON_SIZE = 32;
+  const HANDLE_SIZE = 10;
+
+  const getDirection = (x: number, y: number, w: number, h: number, canvasWidth: number, canvasHeight: number, rotation: number) => {
+    const centerX = canvasWidth / 2;
+    const centerY = canvasHeight / 2;
+    const objCenterX = x + w / 2;
+    const objCenterY = y + h / 2;
+
+    const dx = objCenterX - centerX;
+    const dy = objCenterY - centerY;
+
+    const threshold = 50;
+    if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return '中央';
+
+    let angle = Math.atan2(-dy, dx) * 180 / Math.PI;
+    angle = angle - rotation;
+
+    while (angle > 180) angle -= 360;
+    while (angle < -180) angle += 360;
+
+    if (angle >= -22.5 && angle < 22.5) return '正东';
+    if (angle >= 22.5 && angle < 67.5) return '东北';
+    if (angle >= 67.5 && angle < 112.5) return '正北';
+    if (angle >= 112.5 && angle < 157.5) return '西北';
+    if (angle >= 157.5 || angle < -157.5) return '正西';
+    if (angle >= -157.5 && angle < -112.5) return '西南';
+    if (angle >= -112.5 && angle < -67.5) return '正南';
+    if (angle >= -67.5 && angle < -22.5) return '东南';
+
+    return '中央';
+  };
+
+  const isInsideRoom = (px: number, py: number, room: any) => {
+    return px >= room.x && px <= room.x + room.w &&
+           py >= room.y && py <= room.y + room.h;
+  };
+
+  const findBedroomAt = (x: number, y: number) => {
+    for (let i = spatialRooms.length - 1; i >= 0; i--) {
+      const r = spatialRooms[i];
+      if ((r.value.includes('卧室') || r.value === '主卧室') && isInsideRoom(x, y, r)) {
+        return i;
+      }
+    }
+    return null;
+  };
+
+  const drawCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Grid background
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= canvas.width; x += 20) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = 0; y <= canvas.height; y += 20) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+
+    // Center crosshair
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.1)';
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2, 0); ctx.lineTo(canvas.width / 2, canvas.height);
+    ctx.moveTo(0, canvas.height / 2); ctx.lineTo(canvas.width, canvas.height / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw rooms
+    spatialRooms.forEach((room, idx) => {
+      ctx.save();
+      const cx = room.x + room.w / 2;
+      const cy = room.y + room.h / 2;
+      ctx.translate(cx, cy);
+      ctx.rotate(room.rotation || 0);
+      ctx.translate(-cx, -cy);
+
+      const isBedroom = room.value.includes('卧室') || room.value === '主卧室';
+      const colors = isBedroom ? { fill: 'rgba(0, 168, 107, 0.1)', stroke: '#00A86B' } : 
+                    (room.type === 'room' ? { fill: 'rgba(212, 175, 55, 0.1)', stroke: '#D4AF37' } : 
+                    { fill: 'rgba(74, 159, 223, 0.1)', stroke: '#4A9FDF' });
+
+      ctx.fillStyle = colors.fill;
+      ctx.fillRect(room.x, room.y, room.w, room.h);
+      ctx.strokeStyle = selectedRoomIdx === idx ? '#fff' : colors.stroke;
+      ctx.lineWidth = selectedRoomIdx === idx ? 2 : 1;
+      ctx.strokeRect(room.x, room.y, room.w, room.h);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = '20px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(room.icon, cx, cy - 5);
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText(room.value, cx, cy + 15);
+
+      const dir = getDirection(room.x, room.y, room.w, room.h, canvas.width, canvas.height, compassRotation);
+      ctx.fillStyle = 'rgba(212, 175, 55, 0.6)';
+      ctx.font = '9px sans-serif';
+      ctx.fillText(dir, cx, room.y + room.h - 5);
+
+      ctx.restore();
+
+      if (selectedRoomIdx === idx) {
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(room.x + room.w - HANDLE_SIZE, room.y + room.h - HANDLE_SIZE, HANDLE_SIZE, HANDLE_SIZE);
+        ctx.beginPath();
+        ctx.arc(room.x + room.w / 2, room.y - 15, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#D4AF37';
+        ctx.fill();
+      }
+    });
+
+    // Draw persons
+    spatialPersons.forEach((person, idx) => {
+      const bedroom = spatialRooms[person.bedroomId];
+      if (!bedroom) return;
+      const px = bedroom.x + bedroom.w / 2 + (person.offsetX || 0);
+      const py = bedroom.y + bedroom.h / 2 + (person.offsetY || 0);
+
+      ctx.font = '22px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(person.icon, px, py);
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillStyle = selectedPersonIdx === idx ? '#fff' : '#00A86B';
+      ctx.fillText(person.value, px, py + 16);
+    });
+  };
+
+  useEffect(() => {
+    if (activeTab === 'spatial') {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const rect = canvas.parentElement?.getBoundingClientRect();
+        if (rect) {
+          canvas.width = rect.width;
+          canvas.height = rect.height;
+        }
+      }
+      drawCanvas();
+    }
+  }, [activeTab, spatialRooms, spatialPersons, compassRotation, selectedRoomIdx, selectedPersonIdx]);
+
+  const handleSpatialMouseDown = (e: React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // Check persons
+    for (let i = spatialPersons.length - 1; i >= 0; i--) {
+      const p = spatialPersons[i];
+      const bedroom = spatialRooms[p.bedroomId];
+      if (!bedroom) continue;
+      const px = bedroom.x + bedroom.w / 2 + (p.offsetX || 0);
+      const py = bedroom.y + bedroom.h / 2 + (p.offsetY || 0);
+      if (Math.abs(mx - px) < PERSON_SIZE / 2 && Math.abs(my - py) < PERSON_SIZE / 2) {
+        setSelectedPersonIdx(i);
+        setSelectedRoomIdx(null);
+        setDragMode('move-person');
+        setDragStart({ x: mx, y: my });
+        setOriginalState({ bedroomId: p.bedroomId, offsetX: p.offsetX, offsetY: p.offsetY });
+        return;
+      }
+    }
+
+    // Check rooms
+    for (let i = spatialRooms.length - 1; i >= 0; i--) {
+      const r = spatialRooms[i];
+      if (selectedRoomIdx === i) {
+        if (mx >= r.x + r.w - HANDLE_SIZE && mx <= r.x + r.w &&
+            my >= r.y + r.h - HANDLE_SIZE && my <= r.y + r.h) {
+          setDragMode('resize');
+          setDragStart({ x: mx, y: my });
+          setOriginalState({ w: r.w, h: r.h });
+          return;
+        }
+        const rotateX = r.x + r.w / 2;
+        const rotateY = r.y - 15;
+        if (Math.sqrt((mx - rotateX) ** 2 + (my - rotateY) ** 2) < 10) {
+          setDragMode('rotate');
+          setDragStart({ x: mx, y: my });
+          setOriginalState({ rotation: r.rotation || 0 });
+          return;
+        }
+      }
+      if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
+        setSelectedRoomIdx(i);
+        setSelectedPersonIdx(null);
+        setDragMode('move-room');
+        setDragStart({ x: mx - r.x, y: my - r.y });
+        return;
+      }
+    }
+    setSelectedRoomIdx(null);
+    setSelectedPersonIdx(null);
+  };
+
+  const handleSpatialMouseMove = (e: React.MouseEvent) => {
+    if (!dragMode) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (dragMode === 'move-room' && selectedRoomIdx !== null) {
+      setSpatialRooms(prev => {
+        const next = [...prev];
+        next[selectedRoomIdx] = { ...next[selectedRoomIdx], x: mx - dragStart.x, y: my - dragStart.y };
+        return next;
+      });
+    } else if (dragMode === 'resize' && selectedRoomIdx !== null) {
+      setSpatialRooms(prev => {
+        const next = [...prev];
+        const dx = mx - dragStart.x;
+        const dy = my - dragStart.y;
+        next[selectedRoomIdx] = { 
+          ...next[selectedRoomIdx], 
+          w: Math.max(ROOM_MIN_SIZE, originalState.w + dx),
+          h: Math.max(ROOM_MIN_SIZE, originalState.h + dy)
+        };
+        return next;
+      });
+    } else if (dragMode === 'rotate' && selectedRoomIdx !== null) {
+      setSpatialRooms(prev => {
+        const next = [...prev];
+        const r = next[selectedRoomIdx];
+        const cx = r.x + r.w / 2;
+        const cy = r.y + r.h / 2;
+        const angle = Math.atan2(my - cy, mx - cx);
+        next[selectedRoomIdx] = { ...r, rotation: angle + Math.PI / 2 };
+        return next;
+      });
+    } else if (dragMode === 'move-person' && selectedPersonIdx !== null) {
+      setSpatialPersons(prev => {
+        const next = [...prev];
+        const p = next[selectedPersonIdx];
+        const bedroom = spatialRooms[p.bedroomId];
+        if (bedroom) {
+          next[selectedPersonIdx] = {
+            ...p,
+            offsetX: mx - (bedroom.x + bedroom.w / 2),
+            offsetY: my - (bedroom.y + bedroom.h / 2)
+          };
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleSpatialMouseUp = (e: React.MouseEvent) => {
+    if (dragMode === 'move-person' && selectedPersonIdx !== null) {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const newBedroomIdx = findBedroomAt(mx, my);
+        
+        setSpatialPersons(prev => {
+          const next = [...prev];
+          const p = next[selectedPersonIdx];
+          if (newBedroomIdx === null) {
+            next[selectedPersonIdx] = { ...p, ...originalState };
+          } else {
+            const newBedroom = spatialRooms[newBedroomIdx];
+            next[selectedPersonIdx] = {
+              ...p,
+              bedroomId: newBedroomIdx,
+              offsetX: mx - (newBedroom.x + newBedroom.w / 2),
+              offsetY: my - (newBedroom.y + newBedroom.h / 2)
+            };
+          }
+          return next;
+        });
+      }
+    }
+    setDragMode(null);
+    setOriginalState(null);
+  };
+
+  const handleSpatialDoubleClick = (e: React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // Check persons
+    for (let i = spatialPersons.length - 1; i >= 0; i--) {
+      const p = spatialPersons[i];
+      const bedroom = spatialRooms[p.bedroomId];
+      if (!bedroom) continue;
+      const px = bedroom.x + bedroom.w / 2 + (p.offsetX || 0);
+      const py = bedroom.y + bedroom.h / 2 + (p.offsetY || 0);
+      if (Math.abs(mx - px) < PERSON_SIZE / 2 && Math.abs(my - py) < PERSON_SIZE / 2) {
+        setSpatialPersons(prev => prev.filter((_, idx) => idx !== i));
+        setSelectedPersonIdx(null);
+        return;
+      }
+    }
+
+    // Check rooms
+    for (let i = spatialRooms.length - 1; i >= 0; i--) {
+      const r = spatialRooms[i];
+      if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
+        setSpatialPersons(prev => prev.filter(p => p.bedroomId !== i).map(p => ({
+          ...p,
+          bedroomId: p.bedroomId > i ? p.bedroomId - 1 : p.bedroomId
+        })));
+        setSpatialRooms(prev => prev.filter((_, idx) => idx !== i));
+        setSelectedRoomIdx(null);
+        return;
+      }
+    }
+  };
+
+  const handleSpatialDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const type = e.dataTransfer.getData('type') as 'room' | 'person';
+    const value = e.dataTransfer.getData('value');
+    const icon = e.dataTransfer.getData('icon');
+
+    if (type === 'person') {
+      const bedroomIdx = findBedroomAt(x, y);
+      if (bedroomIdx !== null) {
+        const bedroom = spatialRooms[bedroomIdx];
+        setSpatialPersons(prev => {
+          const filtered = prev.filter(p => p.value !== value);
+          const count = filtered.filter(p => p.bedroomId === bedroomIdx).length;
+          return [...filtered, {
+            value,
+            icon,
+            bedroomId: bedroomIdx,
+            offsetX: (count % 2) * 30 - 15,
+            offsetY: Math.floor(count / 2) * 25
+          }];
+        });
+      }
+    } else {
+      setSpatialRooms(prev => [...prev, {
+        type,
+        value,
+        icon,
+        x: x - ROOM_DEFAULT_SIZE / 2,
+        y: y - ROOM_DEFAULT_SIZE / 2,
+        w: ROOM_DEFAULT_SIZE,
+        h: ROOM_DEFAULT_SIZE,
+        rotation: 0
+      }]);
+    }
+  };
+
+  const [isGeneratingSpatialReport, setIsGeneratingSpatialReport] = useState(false);
+  const [spatialReport, setSpatialReport] = useState<string | null>(null);
+  const [spatialRiskScores, setSpatialRiskScores] = useState<any>({
+    environmentalStress: 50,
+    spatialResonance: 50,
+    biologicalResponse: 50,
+    overallRisk: 50
+  });
   const [insightStep, setInsightStep] = useState<'form' | 'chat'>('form');
   const [insightAge, setInsightAge] = useState('');
   const [insightGender, setInsightGender] = useState('');
@@ -1170,24 +1603,24 @@ export default function App() {
                     <HeartPulse className="w-4 h-4" />
                     AI Health Insight
                   </div>
-                  <h2 className="text-3xl md:text-5xl font-bold text-white serif tracking-tight">生成您的 AI 健康大师报告</h2>
-                  <p className="text-zinc-500 text-lg max-w-2xl mx-auto">
-                    基于您的先天命盘，结合中医经络与现代预防医学，深度解析一生健康风险与养生方案。
+                  <h2 className="text-2xl md:text-5xl font-bold text-white serif tracking-tight">星河坐标下的生命图谱</h2>
+                  <p className="text-zinc-500 text-sm md:text-lg max-w-2xl mx-auto leading-relaxed">
+                    星曜为引，经络为纲。这是一份专属于您的生命底层说明书。我们不讨论疾病，我们只讨论如何让这台精密的生物机器，在时间的洪流中保持永恒的稳态。
                   </p>
                   <button 
                     onClick={generateHealthReport}
                     disabled={isGeneratingHealthReport}
-                    className="btn-primary px-12 py-5 text-lg flex items-center justify-center gap-4 mx-auto group"
+                    className="btn-primary px-8 md:px-12 py-4 md:py-5 text-base md:text-lg flex items-center justify-center gap-4 mx-auto group"
                   >
                     {isGeneratingHealthReport ? (
                       <>
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                        正在深度解析命盘能量...
+                        <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
+                        正在深度解析命盘能量，这大概需要2分钟
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-                        立即生成健康报告
+                        <Sparkles className="w-5 h-5 md:w-6 md:h-6 group-hover:rotate-12 transition-transform" />
+                        立即生成命脉全息健康报告
                       </>
                     )}
                   </button>
@@ -1244,7 +1677,7 @@ export default function App() {
 
                         <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
                           <div className="lg:col-span-3">
-                            <div className="markdown-body custom-report-style">
+                            <div className="prose prose-invert prose-jade max-w-none custom-report-style">
                               <Markdown>{healthReport}</Markdown>
                             </div>
                           </div>
@@ -1350,203 +1783,258 @@ export default function App() {
           </motion.section>
         )}
 
-        {activeTab === 'insight' && (
-          <motion.section 
-            key="insight"
+        {activeTab === 'spatial' && (
+          <motion.section
+            key="spatial"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="py-32 px-6 max-w-4xl mx-auto min-h-screen"
+            className="py-32 px-6 max-w-7xl mx-auto min-h-screen"
           >
             <SectionHeader 
               number="04" 
-              title="AI 洞察" 
-              subtitle="深度生命能量状态评估"
+              title="空间能量" 
+              subtitle="居住环境健康风险分析引擎"
             />
 
-            {insightStep === 'form' ? (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="glass-panel p-12 max-w-lg mx-auto space-y-12"
-              >
-                <div className="text-center space-y-4">
-                  <div className="w-16 h-16 rounded-full bg-jade/10 flex items-center justify-center mx-auto">
-                    <Sparkles className="w-8 h-8 text-jade" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white serif">开启深度交流</h3>
-                  <p className="text-zinc-500 text-sm">请提供基础信息，以便东方体质分析师为您提供更精准的状态评估。</p>
-                </div>
-
-                <div className="space-y-8">
-                  <div className="space-y-4">
-                    <label className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">年龄段</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {['20岁以下', '20-35岁', '36-50岁', '50岁以上'].map(age => (
-                        <button
-                          key={age}
-                          onClick={() => setInsightAge(age)}
-                          className={cn(
-                            "px-4 py-3 rounded-xl border text-sm transition-all",
-                            insightAge === age 
-                              ? "bg-jade/10 border-jade text-jade" 
-                              : "bg-white/[0.02] border-white/5 text-zinc-400 hover:border-white/20"
-                          )}
-                        >
-                          {age}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <label className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">性别</label>
-                    <div className="flex gap-3">
-                      {['男', '女'].map(gender => (
-                        <button
-                          key={gender}
-                          onClick={() => setInsightGender(gender)}
-                          className={cn(
-                            "flex-1 px-4 py-3 rounded-xl border text-sm transition-all",
-                            insightGender === gender 
-                              ? "bg-jade/10 border-jade text-jade" 
-                              : "bg-white/[0.02] border-white/5 text-zinc-400 hover:border-white/20"
-                          )}
-                        >
-                          {gender}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleInsightStart}
-                  disabled={!insightAge || !insightGender || isInsightLoading}
-                  className="w-full btn-primary bg-jade hover:bg-jade/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isInsightLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "开始探索"}
-                </button>
-              </motion.div>
-            ) : (
-              <div className="space-y-8">
-                {/* Chat Container */}
-                <div className="glass-panel p-6 min-h-[500px] flex flex-col gap-6 overflow-hidden relative">
-                  <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar max-h-[600px]">
-                    {insightMessages.map((msg, i) => {
-                      const isLastMessage = i === insightMessages.length - 1;
-                      const hasResult = constitutionData && isLastMessage && msg.role === 'assistant';
-                      
-                      if (hasResult) return null; // Don't render the raw text bubble if we have the formatted report below
-
-                      return (
-                        <motion.div
-                          key={i}
-                          initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className={cn(
-                            "max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed",
-                            msg.role === 'user' 
-                              ? "ml-auto bg-white/[0.05] text-zinc-200" 
-                              : "mr-auto border-l-2 border-jade bg-transparent text-zinc-300 prose prose-invert prose-sm prose-jade max-w-none"
-                          )}
-                        >
-                          {msg.role === 'assistant' ? (
-                            <Markdown>{msg.content}</Markdown>
-                          ) : (
-                            msg.content
-                          )}
-                        </motion.div>
-                      );
-                    })}
-                    {isInsightLoading && (
-                      <div className="flex items-center gap-2 text-jade/50 text-xs font-mono uppercase tracking-widest">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        分析师正在思考...
+            <div className="grid lg:grid-cols-12 gap-12">
+              {/* Toolbox */}
+              <div className="lg:col-span-3 space-y-8">
+                <div className="glass-panel p-6 space-y-6">
+                  <h3 className="text-xs font-bold text-jade uppercase tracking-widest border-b border-white/5 pb-2">家庭角色</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: '父亲', icon: '👴' },
+                      { value: '母亲', icon: '👵' },
+                      { value: '长子', icon: '👦' },
+                      { value: '长女', icon: '👧' },
+                      { value: '中男', icon: '👦' },
+                      { value: '中女', icon: '👧' },
+                      { value: '少男', icon: '👶' },
+                      { value: '少女', icon: '👶' }
+                    ].map(person => (
+                      <div
+                        key={person.value}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('type', 'person');
+                          e.dataTransfer.setData('value', person.value);
+                          e.dataTransfer.setData('icon', person.icon);
+                        }}
+                        className="flex flex-col items-center justify-center p-3 bg-white/[0.02] border border-white/5 rounded-xl cursor-grab hover:bg-white/[0.05] transition-all active:cursor-grabbing"
+                      >
+                        <span className="text-2xl mb-1">{person.icon}</span>
+                        <span className="text-[10px] text-zinc-400">{person.value}</span>
                       </div>
-                    )}
-                    {/* Radar Chart Interception */}
-                    {constitutionData && (
-                      <motion.div 
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="glass-panel p-8 mt-8 border-jade/30 bg-jade/5 relative overflow-hidden"
-                      >
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-jade/50 to-transparent"></div>
-                        <h4 className="text-center text-xl font-bold text-white serif mb-8 flex items-center justify-center gap-3">
-                          <div className="w-8 h-[1px] bg-jade/30"></div>
-                          身体能量分布图谱
-                          <div className="w-8 h-[1px] bg-jade/30"></div>
-                        </h4>
-                        <div className="h-[400px]">
-                          <ReactECharts 
-                            option={{
-                              backgroundColor: 'transparent',
-                              radar: {
-                                indicator: Object.keys(constitutionData).map(key => ({ 
-                                  name: key, 
-                                  max: Math.max(...Object.values(constitutionData) as number[]) * 1.2 
-                                })),
-                                shape: 'circle',
-                                splitNumber: 5,
-                                axisName: { color: '#8E9299', fontSize: 10 },
-                                splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } },
-                                splitArea: { show: false },
-                                axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } }
-                              },
-                              series: [{
-                                type: 'radar',
-                                data: [{
-                                  value: Object.values(constitutionData),
-                                  name: '体质分布',
-                                  itemStyle: { color: '#00A86B' },
-                                  areaStyle: {
-                                    color: {
-                                      type: 'radial',
-                                      x: 0.5, y: 0.5, r: 0.5,
-                                      colorStops: [
-                                        { offset: 0, color: 'rgba(0, 168, 107, 0.1)' },
-                                        { offset: 1, color: 'rgba(0, 168, 107, 0.6)' }
-                                      ]
-                                    }
-                                  }
-                                }]
-                              }]
-                            }}
-                            style={{ height: '100%', width: '100%' }}
-                          />
-                        </div>
-                        <div className="mt-8 pt-8 border-t border-white/5 prose prose-invert prose-jade max-w-none prose-p:leading-relaxed prose-headings:serif prose-headings:text-jade prose-strong:text-gold">
-                          <Markdown>
-                            {insightMessages[insightMessages.length - 1].content.replace(/<用户体质：.+?>/, '')}
-                          </Markdown>
-                        </div>
-                      </motion.div>
-                    )}
+                    ))}
                   </div>
 
-                  {/* Input Area */}
-                  {!constitutionData && (
-                    <form onSubmit={handleInsightChat} className="relative mt-4">
-                      <input
-                        type="text"
-                        value={insightInput}
-                        onChange={(e) => setInsightInput(e.target.value)}
-                        placeholder="在此输入您的感受或回答..."
-                        className="w-full bg-white/[0.02] border border-white/10 rounded-2xl px-6 py-4 text-sm text-white focus:outline-none focus:border-jade/50 transition-all pr-16"
-                      />
-                      <button
-                        type="submit"
-                        disabled={!insightInput.trim() || isInsightLoading}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-3 text-jade hover:bg-jade/10 rounded-xl transition-all disabled:opacity-30"
+                  <h3 className="text-xs font-bold text-gold uppercase tracking-widest border-b border-white/5 pb-2 pt-4">功能空间</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: '厨房', icon: '🍳' },
+                      { value: '厕所', icon: '🚽' },
+                      { value: '卧室', icon: '🛏️' },
+                      { value: '主卧室', icon: '🛏️' },
+                      { value: '客厅', icon: '🛋️' },
+                      { value: '餐厅', icon: '🍽️' },
+                      { value: '书房', icon: '📚' },
+                      { value: '阳台', icon: '🌿' }
+                    ].map(room => (
+                      <div
+                        key={room.value}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('type', 'room');
+                          e.dataTransfer.setData('value', room.value);
+                          e.dataTransfer.setData('icon', room.icon);
+                        }}
+                        className="flex flex-col items-center justify-center p-3 bg-white/[0.02] border border-white/5 rounded-xl cursor-grab hover:bg-white/[0.05] transition-all active:cursor-grabbing"
                       >
-                        <ArrowRight className="w-5 h-5" />
-                      </button>
-                    </form>
-                  )}
+                        <span className="text-2xl mb-1">{room.icon}</span>
+                        <span className="text-[10px] text-zinc-400">{room.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="glass-panel p-6 bg-jade/5 border-jade/20">
+                  <p className="text-[10px] text-jade/80 leading-relaxed">
+                    <strong>操作指引：</strong><br/>
+                    • 拖拽房间至画布布局。<br/>
+                    • 拖拽角色至卧室内。<br/>
+                    • 拖拽边角缩放，顶部圆点旋转。<br/>
+                    • 双击元素删除。<br/>
+                    • 旋转罗盘调整朝向。
+                  </p>
                 </div>
               </div>
-            )}
+
+              {/* Canvas Area */}
+              <div className="lg:col-span-6">
+                <div className="glass-panel p-4 h-[600px] relative overflow-hidden flex flex-col">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-jade rounded-full animate-pulse"></div>
+                      <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Spatial Energy Canvas</span>
+                    </div>
+                    <button 
+                      onClick={() => { setSpatialRooms([]); setSpatialPersons([]); }}
+                      className="text-[10px] text-zinc-600 hover:text-red-400 transition-colors uppercase tracking-widest"
+                    >
+                      Clear Canvas
+                    </button>
+                  </div>
+
+                  <div className="flex-1 relative bg-black/40 rounded-xl border border-white/5 overflow-hidden">
+                    <canvas 
+                      ref={canvasRef}
+                      onMouseDown={handleSpatialMouseDown}
+                      onMouseMove={handleSpatialMouseMove}
+                      onMouseUp={handleSpatialMouseUp}
+                      onMouseLeave={handleSpatialMouseUp}
+                      onDoubleClick={handleSpatialDoubleClick}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleSpatialDrop}
+                      className="w-full h-full cursor-crosshair"
+                    />
+                    
+                    {/* Compass UI */}
+                    <div className="absolute bottom-6 right-6 group">
+                      <div 
+                        className="w-20 h-20 rounded-full bg-zinc-900/80 border-2 border-white/10 flex items-center justify-center cursor-grab active:cursor-grabbing relative"
+                        onMouseDown={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const cx = rect.left + rect.width / 2;
+                          const cy = rect.top + rect.height / 2;
+                          const startAngle = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI - compassRotation;
+                          
+                          const handleMove = (moveEvent: MouseEvent) => {
+                            const currentAngle = Math.atan2(moveEvent.clientY - cy, moveEvent.clientX - cx) * 180 / Math.PI;
+                            setCompassRotation(currentAngle - startAngle);
+                          };
+                          
+                          const handleUp = () => {
+                            window.removeEventListener('mousemove', handleMove);
+                            window.removeEventListener('mouseup', handleUp);
+                          };
+                          
+                          window.addEventListener('mousemove', handleMove);
+                          window.addEventListener('mouseup', handleUp);
+                        }}
+                      >
+                        <div 
+                          className="w-full h-full relative transition-transform duration-75"
+                          style={{ transform: `rotate(${compassRotation}deg)` }}
+                        >
+                          <span className="absolute top-1 left-1/2 -translate-x-1/2 text-[10px] font-bold text-red-500">北</span>
+                          <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-bold text-gold">南</span>
+                          <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-400">东</span>
+                          <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-400">西</span>
+                        </div>
+                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[8px] text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">拖拽旋转罗盘</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Analysis Trigger & Results */}
+              <div className="lg:col-span-3 space-y-8">
+                <div className="glass-panel p-8 text-center space-y-6">
+                  <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center mx-auto">
+                    <Zap className="w-8 h-8 text-gold" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-white serif">环境应力精算</h3>
+                    <p className="text-zinc-500 text-xs">基于倪海厦阳宅理论，对当前空间布局进行生物节律响应评估。</p>
+                  </div>
+                  <button 
+                    onClick={generateSpatialReport}
+                    disabled={spatialRooms.length === 0 || isGeneratingSpatialReport}
+                    className="btn-primary w-full py-4 bg-gold hover:bg-gold/90 text-obsidian font-bold"
+                  >
+                    {isGeneratingSpatialReport ? (
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                    ) : (
+                      "生成空间健康报告"
+                    )}
+                  </button>
+                </div>
+
+                {spatialReport && (
+                  <div className="glass-panel p-6 space-y-4">
+                    <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest border-b border-white/5 pb-2">Risk Summary</p>
+                    <div className="space-y-3">
+                      {[
+                        { label: 'Environmental Stress', value: spatialRiskScores.environmentalStress },
+                        { label: 'Spatial Resonance', value: spatialRiskScores.spatialResonance },
+                        { label: 'Biological Response', value: spatialRiskScores.biologicalResponse }
+                      ].map(item => (
+                        <div key={item.label} className="space-y-1">
+                          <div className="flex justify-between text-[9px] uppercase tracking-tighter">
+                            <span className="text-zinc-400">{item.label}</span>
+                            <span className="text-zinc-200">{item.value}%</span>
+                          </div>
+                          <div className="h-1 bg-white/5 w-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${item.value}%` }}
+                              className="h-full bg-gold/50" 
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Spatial Report Display */}
+            <AnimatePresence>
+              {spatialReport && (
+                <motion.div 
+                  id="spatial-report-section"
+                  initial={{ opacity: 0, y: 40 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-24 max-w-5xl mx-auto"
+                >
+                  <div className="glass-panel p-8 md:p-16 border-white/10 bg-black/40 shadow-[0_40px_120px_rgba(0,0,0,0.8)] relative overflow-hidden">
+                    <div className="flex flex-col md:flex-row justify-between items-start mb-12 border-b border-white/10 pb-8 gap-6 relative">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-6 bg-jade" />
+                          <h3 className="text-jade font-black tracking-[0.3em] uppercase text-sm">Spatial Risk Analysis</h3>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-zinc-500 text-[9px] font-mono uppercase tracking-widest">Engine: Spatial Resonance v1.0</p>
+                          <p className="text-zinc-500 text-[9px] font-mono uppercase tracking-widest">Protocol: Health-Only Focus</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-bold text-2xl tracking-tight leading-tight" style={{ fontFamily: "'Cormorant Garamond', serif" }}>居住环境健康风险评估</p>
+                        <p className="text-zinc-500 text-[9px] font-mono uppercase tracking-widest mt-2">Matrix Actuarial Services</p>
+                      </div>
+                    </div>
+
+                    <div className="prose prose-invert prose-jade max-w-none custom-report-style">
+                      <Markdown>{spatialReport}</Markdown>
+                    </div>
+
+                    <div className="mt-16 pt-8 border-t border-white/5 flex justify-between items-center">
+                      <p className="text-[9px] text-zinc-600 font-mono uppercase tracking-widest">
+                        © {new Date().getFullYear()} Matrix Spatial Health // Protocol v1.0
+                      </p>
+                      <div className="flex gap-4">
+                        <div className="px-3 py-1 border border-white/10 text-[9px] text-zinc-500 font-mono uppercase tracking-widest">Objective Analysis</div>
+                        <div className="px-3 py-1 border border-white/10 text-[9px] text-zinc-500 font-mono uppercase tracking-widest">Health Focused</div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.section>
         )}
       </AnimatePresence>
@@ -1728,6 +2216,7 @@ export default function App() {
           {[
             { id: 'home', icon: Home, label: '首页' },
             { id: 'matrix', icon: Compass, label: '矩阵' },
+            { id: 'spatial', icon: Zap, label: '空间' },
             { id: 'insight', icon: Sparkles, label: '洞察' },
             { id: 'history', icon: History, label: '历史' },
             { id: 'profile', icon: User, label: '我的' }
