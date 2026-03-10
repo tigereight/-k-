@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { GoogleGenAI } from "@google/genai";
 import { astro } from 'iztro';
 import { clsx, type ClassValue } from 'clsx';
@@ -374,6 +375,43 @@ export default function App() {
     };
   };
 
+  const formatAIReport = (text: string) => {
+    if (!text) return "";
+    
+    let cleaned = text
+      // Handle double-escaped newlines
+      .replace(/\\\\n/g, '\n')
+      .replace(/\\n/g, '\n')
+      // Handle escaped markdown characters
+      .replace(/\\#/g, '#')
+      .replace(/\\\-/g, '-')
+      .replace(/\\\*/g, '*')
+      .replace(/\\\_/g, '_')
+      // Remove unwanted symbols like ->
+      .replace(/\->/g, ' ')
+      .replace(/=>/g, ' ')
+      // Handle the [ ] section markers if AI still uses them
+      .replace(/\[/g, '\n\n## ')
+      .replace(/\]/g, '\n')
+      // Ensure headers have a space after #
+      .replace(/^(#+)([^\s#])/mg, '$1 $2')
+      // Collapse excessive newlines but keep double newlines for paragraphs
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    // If the AI didn't use headers but used bold for sections, try to convert them
+    // This is a heuristic: if a line is just **Text**, make it a header
+    cleaned = cleaned.split('\n').map(line => {
+      const boldHeaderMatch = line.match(/^\*\*(.*?)\*\*$/);
+      if (boldHeaderMatch && boldHeaderMatch[1].length < 50) {
+        return `## ${boldHeaderMatch[1]}`;
+      }
+      return line;
+    }).join('\n');
+
+    return cleaned;
+  };
+
   const generateHealthReport = async () => {
     if (!astrolabeData) return;
     setIsGeneratingHealthReport(true);
@@ -389,16 +427,8 @@ export default function App() {
         setRiskScores(response.data.riskScores);
       }
       
-      let rawReport = response.data.report || "未能生成报告，请稍后再试。";
-      // Clean up potential double escaping issues from AI response
-      const cleanedReport = rawReport
-        .replace(/\\\\n/g, '\n')
-        .replace(/\\n/g, '\n')
-        .replace(/\\\\r/g, '')
-        .replace(/\\r/g, '')
-        .replace(/\\\\/g, '\\');
-        
-      setHealthReport(cleanedReport);
+      const rawReport = response.data.report || "未能生成报告，请稍后再试。";
+      setHealthReport(formatAIReport(rawReport));
       
       // Scroll to report
       setTimeout(() => {
@@ -443,7 +473,7 @@ export default function App() {
       if (response.data.riskScores) {
         setSpatialRiskScores(response.data.riskScores);
       }
-      setSpatialReport(response.data.report);
+      setSpatialReport(formatAIReport(response.data.report));
       
       setTimeout(() => {
         document.getElementById('spatial-report-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -1685,7 +1715,7 @@ export default function App() {
                         <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
                           <div className="lg:col-span-3">
                             <div className="prose prose-invert prose-jade max-w-none custom-report-style">
-                              <Markdown>{healthReport}</Markdown>
+                              <Markdown remarkPlugins={[remarkGfm]}>{healthReport}</Markdown>
                             </div>
                           </div>
                           
@@ -1954,7 +1984,7 @@ export default function App() {
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-xl font-bold text-white serif">环境应力精算</h3>
-                    <p className="text-zinc-500 text-xs">基于倪海厦阳宅理论，对当前空间布局进行生物节律响应评估。</p>
+                    <p className="text-zinc-500 text-xs">基于阳宅健康理论，对当前空间布局进行生物节律响应评估。</p>
                   </div>
                   <button 
                     onClick={generateSpatialReport}
@@ -2026,7 +2056,7 @@ export default function App() {
                     </div>
 
                     <div className="prose prose-invert prose-jade max-w-none custom-report-style">
-                      <Markdown>{spatialReport}</Markdown>
+                      <Markdown remarkPlugins={[remarkGfm]}>{spatialReport}</Markdown>
                     </div>
 
                     <div className="mt-16 pt-8 border-t border-white/5 flex justify-between items-center">
@@ -2516,13 +2546,15 @@ export default function App() {
           padding-bottom: 0.25rem;
           letter-spacing: -0.01em;
         }
-        .custom-report-style h1 { font-size: 1.4rem; font-weight: 700; color: #D4AF37; border-bottom-color: rgba(212, 175, 55, 0.3); }
-        .custom-report-style h2 { font-size: 1.15rem; font-weight: 600; }
-        .custom-report-style h3 { font-size: 0.95rem; font-weight: 600; border-bottom: none; color: #94a3b8; }
+        .custom-report-style h1 { font-size: 1.8rem; font-weight: 700; color: #D4AF37; border-bottom: 2px solid rgba(212, 175, 55, 0.3); margin-top: 2.5rem; }
+        .custom-report-style h2 { font-size: 1.5rem; font-weight: 600; color: #f8fafc; border-bottom: 1px solid rgba(255, 255, 255, 0.1); margin-top: 2rem; }
+        .custom-report-style h3 { font-size: 1.2rem; font-weight: 600; color: #cbd5e1; border-bottom: none; margin-top: 1.5rem; }
         
         .custom-report-style p {
-          margin-bottom: 0.85rem;
-          text-align: justify;
+          margin-bottom: 1.25rem;
+          line-height: 1.8;
+          font-size: 1rem;
+          color: rgba(255, 255, 255, 0.8);
         }
         
         .custom-report-style blockquote {
