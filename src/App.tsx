@@ -379,37 +379,52 @@ export default function App() {
     if (!text) return "";
     
     let cleaned = text
-      // Handle double-escaped newlines
+      // 1. Handle double-escaped newlines and literal \n strings
       .replace(/\\\\n/g, '\n')
       .replace(/\\n/g, '\n')
-      // Handle escaped markdown characters
-      .replace(/\\#/g, '#')
-      .replace(/\\\-/g, '-')
-      .replace(/\\\*/g, '*')
-      .replace(/\\\_/g, '_')
-      // Remove unwanted symbols like ->
+      
+      // 2. Remove backslash escapes before common markdown/special characters
+      // This is very common in Qwen output when it tries to be "safe"
+      .replace(/\\([#\-\*\_\!\[\]\(\)\.\>\=\+])/g, '$1')
+      
+      // 3. Remove specific unwanted symbols that AI sometimes adds
       .replace(/\->/g, ' ')
       .replace(/=>/g, ' ')
-      // Handle the [ ] section markers if AI still uses them
+      .replace(/【/g, '\n\n## ')
+      .replace(/】/g, '\n')
+      
+      // 4. Handle the [ ] section markers if AI still uses them
       .replace(/\[/g, '\n\n## ')
       .replace(/\]/g, '\n')
-      // Ensure headers have a space after #
+      
+      // 5. Ensure headers have a space after # for proper markdown parsing
       .replace(/^(#+)([^\s#])/mg, '$1 $2')
-      // Collapse excessive newlines but keep double newlines for paragraphs
+      
+      // 6. Collapse excessive newlines but keep double newlines for paragraphs
       .replace(/\n{3,}/g, '\n\n')
       .trim();
 
-    // If the AI didn't use headers but used bold for sections, try to convert them
-    // This is a heuristic: if a line is just **Text**, make it a header
+    // 7. Heuristic cleaning for each line
     cleaned = cleaned.split('\n').map(line => {
-      const boldHeaderMatch = line.match(/^\*\*(.*?)\*\*$/);
-      if (boldHeaderMatch && boldHeaderMatch[1].length < 50) {
+      let trimmedLine = line.trim();
+      
+      // Convert **Text** to ## Text if it's the whole line (likely a title)
+      const boldHeaderMatch = trimmedLine.match(/^\*\*(.*?)\*\*$/);
+      if (boldHeaderMatch && boldHeaderMatch[1].length < 60) {
         return `## ${boldHeaderMatch[1]}`;
       }
-      return line;
+      
+      // Remove any trailing backslashes
+      trimmedLine = trimmedLine.replace(/\\+$/, '');
+      
+      return trimmedLine;
     }).join('\n');
 
-    return cleaned;
+    // 8. Final pass to ensure no weird artifacts remain
+    return cleaned
+      .replace(/\n\n\n+/g, '\n\n')
+      .replace(/\\/g, '') // Remove any remaining stray backslashes
+      .trim();
   };
 
   const generateHealthReport = async () => {
@@ -923,10 +938,12 @@ export default function App() {
 
   // Scroll chat to bottom
   useEffect(() => {
-    if (activeTab === 'insight' && insightStep === 'chat') {
+    // Only auto-scroll when the report is generated (constitutionData is present)
+    // This prevents annoying page jumps during the initial consultation phase
+    if (activeTab === 'insight' && insightStep === 'chat' && constitutionData) {
       document.getElementById('chat-end')?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [insightMessages, activeTab, insightStep]);
+  }, [insightMessages, activeTab, insightStep, constitutionData]);
 
   const loadHistory = async () => {
     setIsLoadingHistory(true);
@@ -1006,7 +1023,7 @@ export default function App() {
         kline_data: calcData.kline_data,
         historyId: currentHistoryId
       });
-      setReport(response.data.report);
+      setReport(formatAIReport(response.data.report));
       setHasGeneratedReport(true);
       
       setTimeout(() => {
@@ -2530,31 +2547,71 @@ export default function App() {
         }
 
         .custom-report-style {
-          font-family: 'Inter', sans-serif;
-          color: rgba(255, 255, 255, 0.65);
-          line-height: 1.6;
-          font-size: 0.825rem;
+          font-family: 'Inter', system-ui, -apple-system, sans-serif;
+          color: rgba(255, 255, 255, 0.85);
+          line-height: 2;
+          font-size: 1.05rem;
+          letter-spacing: 0.015em;
         }
         .custom-report-style h1, 
         .custom-report-style h2, 
         .custom-report-style h3 {
           font-family: 'Playfair Display', serif;
-          color: #f8fafc; /* Slate 50 */
-          margin-top: 1.5rem;
-          margin-bottom: 0.75rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-          padding-bottom: 0.25rem;
-          letter-spacing: -0.01em;
+          color: #ffffff;
+          margin-top: 4rem;
+          margin-bottom: 2rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+          padding-bottom: 0.75rem;
+          letter-spacing: -0.02em;
         }
-        .custom-report-style h1 { font-size: 1.8rem; font-weight: 700; color: #D4AF37; border-bottom: 2px solid rgba(212, 175, 55, 0.3); margin-top: 2.5rem; }
-        .custom-report-style h2 { font-size: 1.5rem; font-weight: 600; color: #f8fafc; border-bottom: 1px solid rgba(255, 255, 255, 0.1); margin-top: 2rem; }
-        .custom-report-style h3 { font-size: 1.2rem; font-weight: 600; color: #cbd5e1; border-bottom: none; margin-top: 1.5rem; }
+        .custom-report-style h1 { 
+          font-size: 2.5rem; 
+          font-weight: 800; 
+          color: #D4AF37; 
+          border-bottom: 3px solid rgba(212, 175, 55, 0.5); 
+          text-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
+          margin-top: 0;
+        }
+        .custom-report-style h2 { 
+          font-size: 1.85rem; 
+          font-weight: 700; 
+          color: #f8fafc;
+          position: relative;
+        }
+        .custom-report-style h2::after {
+          content: "";
+          position: absolute;
+          bottom: -1px;
+          left: 0;
+          width: 60px;
+          height: 3px;
+          background: #D4AF37;
+        }
+        .custom-report-style h3 { 
+          font-size: 1.4rem; 
+          font-weight: 600; 
+          color: #f1f5f9; 
+          border-bottom: none;
+          margin-top: 2.5rem;
+        }
         
         .custom-report-style p {
-          margin-bottom: 1.25rem;
-          line-height: 1.8;
-          font-size: 1rem;
-          color: rgba(255, 255, 255, 0.8);
+          margin-bottom: 1.75rem;
+          text-align: justify;
+          hyphens: auto;
+        }
+        
+        .custom-report-style ul, .custom-report-style ol {
+          margin-bottom: 2rem;
+          padding-left: 1.5rem;
+        }
+        .custom-report-style li {
+          margin-bottom: 0.75rem;
+          list-style-type: disc;
+          color: rgba(255, 255, 255, 0.75);
+        }
+        .custom-report-style li::marker {
+          color: #D4AF37;
         }
         
         .custom-report-style blockquote {
