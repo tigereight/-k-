@@ -944,10 +944,15 @@ export default function App() {
 
   const chartRef = useRef<any>(null);
 
+  const [loginModalMode, setLoginModalMode] = useState<'login' | 'signup' | 'reset-password'>('login');
+
   const checkUser = async () => {
     try {
       const res = await axios.get<UserInfo>('/api/me');
       setUser(res.data);
+      if (res.data.loggedIn && isLoginModalOpen) {
+        setIsLoginModalOpen(false);
+      }
     } catch (err) {
       setUser({ loggedIn: false });
     } finally {
@@ -962,22 +967,58 @@ export default function App() {
     if (day > days) setDay(days);
   }, [year, month]);
 
+  // Check for reset password in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('reset') === 'true') {
+      setLoginModalMode('reset-password');
+      setIsLoginModalOpen(true);
+    }
+  }, []);
+
   // Check auth status
   useEffect(() => {
     checkUser();
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth event:', event);
+      
+      if (event === 'PASSWORD_RECOVERY') {
+        setLoginModalMode('reset-password');
+        setIsLoginModalOpen(true);
+      }
+
       if (session) {
-        await axios.post('/api/login', { access_token: session.access_token });
+        await axios.post('/api/login', { 
+          access_token: session.access_token,
+          refresh_token: session.refresh_token 
+        });
         checkUser();
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         await axios.post('/api/logout');
         setUser({ loggedIn: false });
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Polling for session (helps with same-browser tab sync)
+    const interval = setInterval(async () => {
+      if (!user.loggedIn) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && !user.loggedIn) {
+          await axios.post('/api/login', { 
+            access_token: session.access_token,
+            refresh_token: session.refresh_token 
+          });
+          checkUser();
+        }
+      }
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(interval);
+    };
+  }, [user.loggedIn]);
 
   // Load history when tab changes
   useEffect(() => {
@@ -2741,6 +2782,8 @@ export default function App() {
       <LoginModal 
         isOpen={isLoginModalOpen} 
         onClose={() => setIsLoginModalOpen(false)} 
+        initialMode={loginModalMode}
+        onRefresh={checkUser}
       />
       <RechargeModal 
         isOpen={isRechargeModalOpen} 
