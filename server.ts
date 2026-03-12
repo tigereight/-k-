@@ -268,46 +268,53 @@ class QiType {
 class AstronomyEngine {
   static getExactJieqi(year: number, termName: string): Date {
     try {
-      const monthMap: Record<string, number> = {
-        "大寒": 1, "春分": 3, "小满": 5, "芒种": 6, "大暑": 7, "处暑": 8, "秋分": 9, "小雪": 11, "立冬": 11
-      };
-      const m = monthMap[termName] || 6;
+      // 优化：直接从该年的中点获取历法表，通常包含全年的节气
+      // lunar-javascript 的 getJieQiTable 返回的是该农历年内的所有节气
+      const lunar = Solar.fromYmd(year, 6, 15).getLunar();
+      const jieqi = lunar.getJieQiTable();
+      
+      // 兼容不同版本的 API
+      let term = null;
+      if (typeof (jieqi as any).get === 'function') {
+        term = (jieqi as any).get(termName);
+      } else {
+        term = (jieqi as any)[termName];
+      }
 
-      const checkMonths = [
-        { y: year, m: m },
-        { y: year, m: m - 1 },
-        { y: year, m: m + 1 },
-        { y: year - 1, m: 12 }
-      ];
-
-      for (let pos of checkMonths) {
-        let y = pos.y;
-        let mon = pos.m;
-        if (mon < 1) { y -= 1; mon = 12; }
-        if (mon > 12) { y += 1; mon = 1; }
-        
-        const lunar = Solar.fromYmd(y, mon, 15).getLunar();
-        const jieqi = lunar.getJieQiTable();
-        const term = (typeof (jieqi as any).get === 'function') ? (jieqi as any).get(termName) : (jieqi as any)[termName];
-        
-        if (term && term.getYear() === year) {
-          return new Date(term.getYear(), term.getMonth() - 1, term.getDay(), term.getHour(), term.getMinute(), term.getSecond());
+      // 如果当前农历年没找到（可能在跨年处），尝试前一年或后一年
+      if (!term || term.getYear() !== year) {
+        const yearsToCheck = [year - 1, year + 1];
+        for (const y of yearsToCheck) {
+          const l = Solar.fromYmd(y, 6, 15).getLunar();
+          const j = l.getJieQiTable();
+          const t = typeof (j as any).get === 'function' ? (j as any).get(termName) : (j as any)[termName];
+          if (t && t.getYear() === year) {
+            term = t;
+            break;
+          }
         }
       }
 
-      for (let targetM = 1; targetM <= 12; targetM++) {
-        const lunar = Solar.fromYmd(year, targetM, 15).getLunar();
-        const jieqi = lunar.getJieQiTable();
-        const term = (typeof (jieqi as any).get === 'function') ? (jieqi as any).get(termName) : (jieqi as any)[termName];
-        if (term && term.getYear() === year) {
-          return new Date(term.getYear(), term.getMonth() - 1, term.getDay(), term.getHour(), term.getMinute(), term.getSecond());
-        }
+      if (term) {
+        return new Date(term.getYear(), term.getMonth() - 1, term.getDay(), term.getHour(), term.getMinute(), term.getSecond());
       }
     } catch (e) {
       console.error(`Error in getExactJieqi for ${termName} in ${year}:`, e);
     }
 
-    throw new Error(`无法定位 ${year}年 的 ${termName} 节气时间，请检查历法库状态`);
+    // 最后的保底方案：遍历该年的月份
+    try {
+      for (let m = 1; m <= 12; m++) {
+        const l = Solar.fromYmd(year, m, 15).getLunar();
+        const j = l.getJieQiTable();
+        const t = typeof (j as any).get === 'function' ? (j as any).get(termName) : (j as any)[termName];
+        if (t && t.getYear() === year) {
+          return new Date(t.getYear(), t.getMonth() - 1, t.getDay(), t.getHour(), t.getMinute(), t.getSecond());
+        }
+      }
+    } catch (e) {}
+
+    throw new Error(`无法定位 ${year}年 的 ${termName} 节气时间`);
   }
 }
 
@@ -857,18 +864,22 @@ app.post("/api/webhook/xunhupay", async (req, res) => {
   const params = req.body;
   const appSecret = process.env.XUNHUPAY_APP_SECRET!;
   
+  console.log('Received Xunhupay Webhook:', JSON.stringify(params));
+
   // 1. Verify signature
   const receivedHash = params.hash;
-  delete params.hash;
-  const calculatedHash = generateXunhupaySign(params, appSecret);
+  const paramsToSign = { ...params };
+  delete paramsToSign.hash;
+  const calculatedHash = generateXunhupaySign(paramsToSign, appSecret);
 
   if (receivedHash !== calculatedHash) {
-    console.error('Invalid webhook signature');
+    console.error('Invalid webhook signature. Received:', receivedHash, 'Calculated:', calculatedHash);
     return res.send('error');
   }
 
   // 2. Process payment
   const { trade_order_id, status } = params;
+  console.log(`Processing order ${trade_order_id} with status ${status}`);
   if (status === 'OD') { // OD means success in Xunhupay
     try {
       // Use a transaction-like approach (idempotent)
@@ -889,17 +900,25 @@ app.post("/api/webhook/xunhupay", async (req, res) => {
 
       if (updateOrderError) throw updateOrderError;
 
-      // Update user balance
+      // Update user balance (Use upsert to handle missing profiles)
       const { data: profile } = await getSupabaseAdmin()
         .from('profiles')
-        .select('herbs_balance')
+        .select('herbs_balance, email')
         .eq('id', order.user_id)
         .single();
 
+      const currentBalance = profile?.herbs_balance || 0;
+      const newBalance = currentBalance + order.herbs_added;
+      
+      console.log(`Updating balance for user ${order.user_id}: ${currentBalance} -> ${newBalance}`);
+
       const { error: updateProfileError } = await getSupabaseAdmin()
         .from('profiles')
-        .update({ herbs_balance: (profile?.herbs_balance || 0) + order.herbs_added })
-        .eq('id', order.user_id);
+        .upsert({ 
+          id: order.user_id, 
+          herbs_balance: newBalance,
+          updated_at: new Date().toISOString()
+        });
 
       if (updateProfileError) throw updateProfileError;
 
@@ -921,8 +940,17 @@ app.get("/api/history", isAuthenticated, (req, res) => {
 app.post("/api/calculate", (req, res) => {
   try {
     const { year, month, day } = req.body;
+    console.log(`Calculating K-line for: ${year}-${month}-${day}`);
+    
     if (!year || !month || !day) return res.status(400).json({ error: "请求参数不完整" });
-    const birthDate = new Date(year, month - 1, day, 12, 0);
+    
+    const y = parseInt(year);
+    const m = parseInt(month);
+    const d = parseInt(day);
+    
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return res.status(400).json({ error: "日期格式不正确" });
+
+    const birthDate = new Date(y, m - 1, d, 12, 0);
     const calc = new WuYunLiuQi(birthDate);
     const engine = new AHIEngine(birthDate);
     const yf = calc.getYearFortune();
@@ -959,6 +987,7 @@ app.post("/api/calculate", (req, res) => {
     }
     res.json({ wylq_summary, kline_data, base_score: engine.baseScore, historyId });
   } catch (error: any) {
+    console.error("Calculation error:", error);
     res.status(500).json({ error: error.message });
   }
 });

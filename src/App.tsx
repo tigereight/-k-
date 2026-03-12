@@ -1019,11 +1019,16 @@ export default function App() {
     setCurrentHistoryId(null);
 
     try {
+      // Ensure month and day are zero-padded for iztro
+      const paddedMonth = month.toString().padStart(2, '0');
+      const paddedDay = day.toString().padStart(2, '0');
+      const dateStr = `${year}-${paddedMonth}-${paddedDay}`;
+      
       const response = await axios.post<CalcResponse>('/api/calculate', { year, month, day });
       setCalcData(response.data);
       
       // Iztro calculation
-      const astrolabe = astro.bySolar(`${year}-${month}-${day}`, timeIndex, gender, true);
+      const astrolabe = astro.bySolar(dateStr, timeIndex, gender, true);
       setAstrolabeData(astrolabe);
 
       setHasCalculated(true);
