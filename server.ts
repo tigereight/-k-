@@ -129,7 +129,7 @@ app.delete("/api/history/:id", isAuthenticated, async (req, res) => {
   const { id } = req.params;
   try {
     const { error } = await getSupabaseAdmin()
-      .from('user_history')
+      .from('health_reports')
       .delete()
       .eq('id', id)
       .eq('user_id', req.session.userId);
@@ -940,7 +940,7 @@ app.post("/api/webhook/xunhupay", async (req, res) => {
 app.get("/api/history", isAuthenticated, async (req, res) => {
   try {
     const { data: history, error } = await getSupabaseAdmin()
-      .from('user_history')
+      .from('health_reports')
       .select('*')
       .eq('user_id', req.session.userId)
       .order('created_at', { ascending: false });
@@ -1356,97 +1356,6 @@ ${ZIWEI_HEALTH_KNOWLEDGE_BASE}
     app.use(express.static(distPath));
     app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
   }
-
-// ==========================================
-// Paid Report Generation (Secure Backend Logic)
-// ==========================================
-
-app.post("/api/generate-report", isAuthenticated, async (req, res) => {
-  const { type, params } = req.body;
-  const userId = req.session.userId;
-
-  if (!['wuyun', 'ziwei', 'spatial'].includes(type)) {
-    return res.status(400).json({ error: "无效的报告类型" });
-  }
-
-  try {
-    const supabase = getSupabaseAdmin();
-
-    // 1. 检查余额
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('herbs_balance')
-      .eq('id', userId)
-      .single();
-
-    if (profileError || !profile) throw new Error("无法获取用户信息");
-    if (profile.herbs_balance < 2) {
-      return res.status(403).json({ error: "草药不足，请前往充值" });
-    }
-
-    // 2. 调用 AI 生成内容 (使用 Gemini)
-    let prompt = "";
-    if (type === 'wuyun') {
-      prompt = `作为中医专家，请根据以下五运六气数据生成一份深度健康分析报告：${JSON.stringify(params)}。要求：Markdown格式，包含体质特点、易感疾病、养生建议。`;
-    } else if (type === 'ziwei') {
-      prompt = `作为紫微斗数专家，请根据以下命盘数据生成一份健康矩阵报告：${JSON.stringify(params)}。要求：Markdown格式，分析脏腑弱点、流年健康风险。`;
-    } else {
-      prompt = `作为风水与环境健康专家，请根据以下空间信息提供能量建议：${JSON.stringify(params)}。要求：Markdown格式，包含环境优化建议。`;
-    }
-
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: prompt,
-    });
-    const content = response.text;
-
-    if (!content) throw new Error("AI 生成报告失败");
-
-    // 3. 原子操作：扣费并存根
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ herbs_balance: profile.herbs_balance - 2 })
-      .eq('id', userId);
-
-    if (updateError) throw new Error("扣费失败");
-
-    const { data: report, error: insertError } = await supabase
-      .from('health_reports')
-      .insert({
-        user_id: userId,
-        report_type: type,
-        content: content
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error("Report save failed after deduction:", insertError);
-    }
-
-    res.json({ success: true, report });
-
-  } catch (error: any) {
-    console.error("Generate report error:", error);
-    res.status(500).json({ error: error.message || "生成报告过程中发生错误" });
-  }
-});
-
-app.get("/api/reports", isAuthenticated, async (req, res) => {
-  try {
-    const { data, error } = await getSupabaseAdmin()
-      .from('health_reports')
-      .select('*')
-      .eq('user_id', req.session.userId)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    res.json(data || []);
-  } catch (error: any) {
-    res.status(500).json({ error: "获取报告列表失败" });
-  }
-});
 
   const PORT = process.env.PORT || 3000;
   const server = app.listen(Number(PORT), "0.0.0.0", () => console.log(`Server running on port ${PORT}`));

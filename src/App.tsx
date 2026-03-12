@@ -5,7 +5,6 @@ import {
   Activity, 
   Calendar, 
   ChevronDown, 
-  ChevronRight,
   Copy, 
   Download, 
   FileText, 
@@ -83,13 +82,15 @@ interface UserInfo {
 
 interface HistoryItem {
   id: number;
-  birth_date: string;
-  wylq_data: {
-    wylq_summary: WylqSummary;
-    kline_data: KlinePoint[];
+  user_id: string;
+  report_type: 'wuyun' | 'ziwei' | 'spatial';
+  content: {
+    report: string;
+    wylq_summary?: WylqSummary;
+    kline_data?: KlinePoint[];
+    riskScores?: any;
+    [key: string]: any;
   };
-  report_text: string | null;
-  base_score: number;
   created_at: string;
 }
 
@@ -437,29 +438,95 @@ export default function App() {
   };
 
   const generateHealthReport = async () => {
+    if (!user.loggedIn) {
+      setIsLoginModalOpen(true);
+      return;
+    }
     if (!astrolabeData) return;
-    handleGeneratePaidReport('ziwei', formatAstrolabeForAI(astrolabeData));
+    setIsGeneratingHealthReport(true);
+    setHealthReport(null);
+
+    try {
+      const formattedData = formatAstrolabeForAI(astrolabeData);
+      const response = await axios.post('/api/generate-health-report', {
+        astrolabeData: formattedData
+      });
+
+      if (response.data.riskScores) {
+        setRiskScores(response.data.riskScores);
+      }
+      
+      const rawReport = response.data.report || "未能生成报告，请稍后再试。";
+      setHealthReport(formatAIReport(rawReport));
+      checkUser(); // Refresh balance
+      
+      // Scroll to report
+      setTimeout(() => {
+        document.getElementById('health-report-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (err: any) {
+      if (err.response?.status === 402) {
+        setIsRechargeModalOpen(true);
+      } else {
+        console.error("Health report generation failed", err);
+        const errorMsg = err.response?.data?.error || err.message || "未知错误";
+        setHealthReport(`生成报告时发生错误: ${errorMsg}\n\n请检查网络连接或稍后再试。`);
+      }
+    } finally {
+      setIsGeneratingHealthReport(false);
+    }
   };
   
   const generateSpatialReport = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!user.loggedIn) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    setIsGeneratingSpatialReport(true);
+    setSpatialReport(null);
 
-    const placements: any[] = [];
-    spatialRooms.forEach(r => {
-      const direction = getDirection(r.x, r.y, r.w, r.h, canvas.width, canvas.height, compassRotation);
-      placements.push({ type: 'room', value: r.value, direction });
-    });
+    try {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    spatialPersons.forEach(p => {
-      const bedroom = spatialRooms[p.bedroomId];
-      if (bedroom) {
-        const direction = getDirection(bedroom.x, bedroom.y, bedroom.w, bedroom.h, canvas.width, canvas.height, compassRotation);
-        placements.push({ type: 'person', value: p.value, direction });
+      const placements: any[] = [];
+      
+      spatialRooms.forEach(r => {
+        const direction = getDirection(r.x, r.y, r.w, r.h, canvas.width, canvas.height, compassRotation);
+        placements.push({ type: 'room', value: r.value, direction });
+      });
+
+      spatialPersons.forEach(p => {
+        const bedroom = spatialRooms[p.bedroomId];
+        if (bedroom) {
+          const direction = getDirection(bedroom.x, bedroom.y, bedroom.w, bedroom.h, canvas.width, canvas.height, compassRotation);
+          placements.push({ type: 'person', value: p.value, direction });
+        }
+      });
+
+      const response = await axios.post('/api/generate-spatial-report', {
+        placements
+      });
+
+      if (response.data.riskScores) {
+        setSpatialRiskScores(response.data.riskScores);
       }
-    });
-
-    handleGeneratePaidReport('spatial', { placements });
+      setSpatialReport(formatAIReport(response.data.report));
+      checkUser(); // Refresh balance
+      
+      setTimeout(() => {
+        document.getElementById('spatial-report-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (err: any) {
+      if (err.response?.status === 402) {
+        setIsRechargeModalOpen(true);
+      } else {
+        console.error("Spatial report generation failed", err);
+        setSpatialReport("生成空间分析报告时发生错误，请稍后再试。");
+      }
+    } finally {
+      setIsGeneratingSpatialReport(false);
+    }
   };
 
   const [isCalculating, setIsCalculating] = useState(false);
@@ -871,10 +938,9 @@ export default function App() {
   const [isInsightLoading, setIsInsightLoading] = useState(false);
   const [constitutionData, setConstitutionData] = useState<any>(null);
 
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<any | null>(null);
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
 
   const chartRef = useRef<any>(null);
 
@@ -932,7 +998,7 @@ export default function App() {
   const loadHistory = async () => {
     setIsLoadingHistory(true);
     try {
-      const res = await axios.get('/api/reports');
+      const res = await axios.get<HistoryItem[]>('/api/history');
       setHistory(res.data);
     } catch (err) {
       console.error("Failed to load history", err);
@@ -985,47 +1051,36 @@ export default function App() {
     }
   };
 
-  const handleGeneratePaidReport = async (type: 'wuyun' | 'ziwei' | 'spatial', params: any) => {
+  const handleGenerateReport = async () => {
     if (!user.loggedIn) {
       setIsLoginModalOpen(true);
       return;
     }
-
-    // 立即检查余额
-    if ((user.user?.herbs_balance || 0) < 2) {
-      setIsRechargeModalOpen(true);
-      return;
-    }
-
-    if (type === 'wuyun') setIsGeneratingReport(true);
-    else if (type === 'ziwei') setIsGeneratingHealthReport(true);
-    else if (type === 'spatial') setIsGeneratingSpatialReport(true);
+    if (!calcData) return;
+    setIsGeneratingReport(true);
 
     try {
-      const response = await axios.post('/api/generate-report', { type, params });
-      const newReport = response.data.report;
+      const response = await axios.post<ReportResponse>('/api/generate-report', {
+        wylq_summary: calcData.wylq_summary,
+        kline_data: calcData.kline_data,
+        historyId: currentHistoryId
+      });
+      setReport(formatAIReport(response.data.report));
+      setHasGeneratedReport(true);
+      checkUser(); // Refresh balance
       
-      if (type === 'wuyun') {
-        setReport(newReport.content);
-        setHasGeneratedReport(true);
-        setTimeout(() => document.getElementById('report-section')?.scrollIntoView({ behavior: 'smooth' }), 100);
-      } else if (type === 'ziwei') {
-        setHealthReport(newReport.content);
-        setTimeout(() => document.getElementById('health-report-section')?.scrollIntoView({ behavior: 'smooth' }), 100);
-      } else if (type === 'spatial') {
-        setSpatialReport(newReport.content);
-        setTimeout(() => document.getElementById('spatial-report-section')?.scrollIntoView({ behavior: 'smooth' }), 100);
-      }
-
-      checkUser(); // 刷新余额
+      setTimeout(() => {
+        document.getElementById('report-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     } catch (error: any) {
-      console.error("Report generation error:", error);
-      const msg = error.response?.data?.error || "报告生成失败";
-      alert(msg);
+      if (error.response?.status === 402) {
+        setIsRechargeModalOpen(true);
+      } else {
+        console.error("Report generation error:", error);
+        alert("报告生成失败，请稍后重试。");
+      }
     } finally {
-      if (type === 'wuyun') setIsGeneratingReport(false);
-      else if (type === 'ziwei') setIsGeneratingHealthReport(false);
-      else if (type === 'spatial') setIsGeneratingSpatialReport(false);
+      setIsGeneratingReport(false);
     }
   };
 
@@ -1481,19 +1536,19 @@ export default function App() {
                   </p>
                 </div>
                 <button 
-                  onClick={() => handleGeneratePaidReport('wuyun', { wylq_summary: calcData.wylq_summary, kline_data: calcData.kline_data })}
-                  disabled={isGeneratingReport || (user.user?.herbs_balance || 0) < 2}
-                  className={`btn-primary min-w-[240px] ${((user.user?.herbs_balance || 0) < 2) ? 'opacity-50 cursor-not-allowed grayscale' : 'bg-gold hover:bg-gold/90'}`}
+                  onClick={handleGenerateReport}
+                  disabled={isGeneratingReport}
+                  className="btn-primary bg-gold hover:bg-gold/90 hover:shadow-[0_0_20px_rgba(212,175,85,0.3)] min-w-[240px]"
                 >
                   {isGeneratingReport ? (
                     <div className="flex items-center gap-3">
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>正在推演天机...</span>
+                      <span>正在构建模型...</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-3">
                       <Activity className="w-5 h-5" />
-                      <span>生成报告 (消耗 2 🌿)</span>
+                      <span>生成专属报告 (消耗2草药)</span>
                     </div>
                   )}
                 </button>
@@ -1575,18 +1630,18 @@ export default function App() {
                   </p>
                   <button 
                     onClick={generateHealthReport}
-                    disabled={isGeneratingHealthReport || (user.user?.herbs_balance || 0) < 2}
-                    className={`btn-primary px-8 md:px-12 py-4 md:py-5 text-base md:text-lg flex items-center justify-center gap-4 mx-auto group ${((user.user?.herbs_balance || 0) < 2) ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
+                    disabled={isGeneratingHealthReport}
+                    className="btn-primary px-8 md:px-12 py-4 md:py-5 text-base md:text-lg flex items-center justify-center gap-4 mx-auto group"
                   >
                     {isGeneratingHealthReport ? (
                       <>
                         <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
-                        正在推演天机...
+                        正在深度解析命盘能量，这大概需要2分钟
                       </>
                     ) : (
                       <>
                         <Sparkles className="w-5 h-5 md:w-6 md:h-6 group-hover:rotate-12 transition-transform" />
-                        生成报告 (消耗 2 🌿)
+                        立即生成命脉全息健康报告 (消耗2草药)
                       </>
                     )}
                   </button>
@@ -1923,7 +1978,7 @@ export default function App() {
                     {isGeneratingSpatialReport ? (
                       <Loader2 className="w-5 h-5 animate-spin mx-auto" />
                     ) : (
-                      "生成空间健康报告"
+                      "生成空间健康报告 (消耗2草药)"
                     )}
                   </button>
                 </div>
@@ -2269,139 +2324,97 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <div className="grid gap-6">
+              <div className="grid gap-4">
                 {history.map((item) => (
                   <motion.div 
                     key={item.id}
-                    whileHover={{ scale: 1.01 }}
-                    onClick={() => {
-                      setSelectedReport(item);
-                      setIsReportModalOpen(true);
-                    }}
-                    className="glass-panel p-8 flex items-center justify-between cursor-pointer hover:bg-white/[0.05] transition-all group border-white/5"
+                    whileHover={{ scale: 1.005 }}
+                    className="glass-panel p-6 flex flex-col gap-4 hover:bg-white/[0.05] transition-all group relative"
                   >
-                    <div className="flex items-center gap-8">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-                        item.report_type === 'wuyun' ? 'bg-jade/10 text-jade' : 
-                        item.report_type === 'ziwei' ? 'bg-gold/10 text-gold' : 
-                        'bg-blue-500/10 text-blue-400'
-                      }`}>
-                        {item.report_type === 'wuyun' ? <Activity className="w-6 h-6" /> : 
-                         item.report_type === 'ziwei' ? <Sparkles className="w-6 h-6" /> : 
-                         <Compass className="w-6 h-6" />}
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-3">
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-                            item.report_type === 'wuyun' ? 'bg-jade/20 text-jade border border-jade/30' : 
-                            item.report_type === 'ziwei' ? 'bg-gold/20 text-gold border border-gold/30' : 
-                            'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                          }`}>
-                            {item.report_type === 'wuyun' ? '五运六气' : 
-                             item.report_type === 'ziwei' ? '生命矩阵' : 
-                             '空间能量'}
-                          </span>
-                          <h4 className="text-lg font-bold text-white serif">健康分析报告</h4>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-6">
+                        <div className={cn(
+                          "w-12 h-12 rounded-full flex items-center justify-center",
+                          item.report_type === 'wuyun' ? "bg-jade/10 text-jade" :
+                          item.report_type === 'ziwei' ? "bg-gold/10 text-gold" :
+                          "bg-blue-400/10 text-blue-400"
+                        )}>
+                          {item.report_type === 'wuyun' ? <Calendar className="w-5 h-5" /> :
+                           item.report_type === 'ziwei' ? <Activity className="w-5 h-5" /> :
+                           <Compass className="w-5 h-5" />}
                         </div>
-                        <p className="text-zinc-500 text-xs font-mono uppercase tracking-widest">
-                          {new Date(item.created_at).toLocaleString('zh-CN', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
+                        <div>
+                          <p className="text-white font-bold serif">
+                            {item.report_type === 'wuyun' ? '五运六气报告' :
+                             item.report_type === 'ziwei' ? '紫微斗数报告' :
+                             '空间能量报告'}
+                          </p>
+                          <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
+                            {new Date(item.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <button 
+                          onClick={() => setSelectedHistoryItem(selectedHistoryItem?.id === item.id ? null : item)}
+                          className="text-jade text-sm hover:underline flex items-center gap-1"
+                        >
+                          {selectedHistoryItem?.id === item.id ? '收起内容' : '查看完整报告'}
+                          <ChevronDown className={cn("w-4 h-4 transition-transform", selectedHistoryItem?.id === item.id && "rotate-180")} />
+                        </button>
+                        <button 
+                          onClick={(e) => deleteHistory(item.id, e)}
+                          className="p-2 text-zinc-700 hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right hidden md:block">
-                        <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Status</p>
-                        <p className="text-jade text-xs font-bold">已归档</p>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-zinc-700 group-hover:text-gold transition-colors" />
-                    </div>
+
+                    <AnimatePresence>
+                      {selectedHistoryItem?.id === item.id && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="pt-6 border-t border-white/5 mt-2">
+                            <div className="prose prose-invert prose-sm max-w-none markdown-body">
+                              <Markdown remarkPlugins={[remarkGfm]}>
+                                {item.content.report}
+                              </Markdown>
+                            </div>
+                            
+                            {item.report_type === 'wuyun' && item.content.wylq_summary && (
+                              <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
+                                  <p className="text-[10px] text-zinc-500 uppercase mb-1">干支</p>
+                                  <p className="text-xs text-white">{item.content.wylq_summary.ganzhi}</p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
+                                  <p className="text-[10px] text-zinc-500 uppercase mb-1">岁运</p>
+                                  <p className="text-xs text-white">{item.content.wylq_summary.suiyun}</p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
+                                  <p className="text-[10px] text-zinc-500 uppercase mb-1">司天</p>
+                                  <p className="text-xs text-white">{item.content.wylq_summary.sitian}</p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
+                                  <p className="text-[10px] text-zinc-500 uppercase mb-1">在泉</p>
+                                  <p className="text-xs text-white">{item.content.wylq_summary.zaiquan}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 ))}
               </div>
             )}
           </motion.section>
-        )}
-      </AnimatePresence>
-
-      {/* Report Detail Modal */}
-      <AnimatePresence>
-        {isReportModalOpen && selectedReport && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsReportModalOpen(false)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-4xl max-h-[85vh] overflow-hidden glass-panel border-white/10 bg-obsidian flex flex-col"
-            >
-              <div className="p-8 border-b border-white/5 flex justify-between items-center bg-black/20">
-                <div className="flex items-center gap-6">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                    selectedReport.report_type === 'wuyun' ? 'bg-jade/10 text-jade' : 
-                    selectedReport.report_type === 'ziwei' ? 'bg-gold/10 text-gold' : 
-                    'bg-blue-500/10 text-blue-400'
-                  }`}>
-                    {selectedReport.report_type === 'wuyun' ? <Activity className="w-5 h-5" /> : 
-                     selectedReport.report_type === 'ziwei' ? <Sparkles className="w-5 h-5" /> : 
-                     <Compass className="w-5 h-5" />}
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-white serif">
-                      {selectedReport.report_type === 'wuyun' ? '五运六气健康报告' : 
-                       selectedReport.report_type === 'ziwei' ? '生命矩阵健康报告' : 
-                       '空间能量健康报告'}
-                    </h3>
-                    <p className="text-zinc-500 text-xs font-mono uppercase tracking-widest mt-1">
-                      Generated on {new Date(selectedReport.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setIsReportModalOpen(false)}
-                  className="p-3 rounded-full hover:bg-white/5 transition-colors"
-                >
-                  <X className="w-6 h-6 text-zinc-500" />
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
-                <div className="prose prose-invert prose-jade max-w-none custom-report-style">
-                  <Markdown remarkPlugins={[remarkGfm]}>{selectedReport.content}</Markdown>
-                </div>
-              </div>
-
-              <div className="p-8 border-t border-white/5 bg-black/20 flex justify-end gap-4">
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(selectedReport.content);
-                    alert("报告内容已复制到剪贴板");
-                  }}
-                  className="px-6 py-3 rounded-xl border border-white/10 text-zinc-400 hover:text-white hover:bg-white/5 transition-all flex items-center gap-2 text-sm"
-                >
-                  <Copy className="w-4 h-4" />
-                  复制报告内容
-                </button>
-                <button 
-                  onClick={() => setIsReportModalOpen(false)}
-                  className="px-8 py-3 rounded-xl bg-gold text-black font-bold hover:bg-gold/90 transition-all text-sm"
-                >
-                  关闭预览
-                </button>
-              </div>
-            </motion.div>
-          </div>
         )}
       </AnimatePresence>
 
