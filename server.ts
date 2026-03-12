@@ -13,10 +13,23 @@ import { createClient } from '@supabase/supabase-js';
 import md5 from 'md5';
 import fs from "fs";
 
-// Initialize Supabase Admin
-const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+// Initialize Supabase Admin lazily to prevent crash if env vars are missing during build/startup
+let supabaseAdminInstance: any = null;
+const getSupabaseAdmin = () => {
+  if (!supabaseAdminInstance) {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("CRITICAL: Supabase environment variables are missing!");
+      console.error("VITE_SUPABASE_URL:", supabaseUrl ? "Defined" : "MISSING");
+      console.error("SUPABASE_SERVICE_ROLE_KEY:", supabaseServiceKey ? "Defined" : "MISSING");
+      throw new Error("Supabase configuration missing. Please check environment variables.");
+    }
+    supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceKey);
+  }
+  return supabaseAdminInstance;
+};
 
 declare module "express-session" {
   interface SessionData {
@@ -67,6 +80,19 @@ async function startServer() {
     }
   }));
 
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok",
+      env: {
+        VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ? "Present" : "Missing",
+        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? "Present" : "Missing",
+        XUNHUPAY_APPID: process.env.XUNHUPAY_APPID ? "Present" : "Missing",
+        APP_URL: process.env.APP_URL ? "Present" : "Missing",
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY ? "Present" : "Missing"
+      }
+    });
+  });
+
   // Auth Middleware
   const isAuthenticated = (req: any, res: any, next: any) => {
     if (req.session.userId) {
@@ -79,7 +105,7 @@ async function startServer() {
   // Helper to check and deduct herbs
   const checkAndDeductHerbs = async (userId: string, amount: number = 2) => {
     // 1. Get current balance
-    const { data: profile, error: getError } = await supabaseAdmin
+    const { data: profile, error: getError } = await getSupabaseAdmin()
       .from('profiles')
       .select('herbs_balance')
       .eq('id', userId)
@@ -96,7 +122,7 @@ async function startServer() {
     }
 
     // 2. Deduct herbs
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await getSupabaseAdmin()
       .from('profiles')
       .update({ herbs_balance: profile.herbs_balance - amount })
       .eq('id', userId);
@@ -726,7 +752,7 @@ app.post("/api/login", async (req, res) => {
   if (!access_token) return res.status(400).json({ error: "Token missing" });
 
   try {
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(access_token);
+    const { data: { user }, error } = await getSupabaseAdmin().auth.getUser(access_token);
     if (error || !user) throw error;
 
     req.session.userId = user.id;
@@ -742,7 +768,7 @@ app.post("/api/logout", (req, res) => {
 
 app.get("/api/me", async (req, res) => {
   if (req.session.userId) {
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await getSupabaseAdmin()
       .from('profiles')
       .select('*')
       .eq('id', req.session.userId)
@@ -789,7 +815,7 @@ app.post("/api/pay", isAuthenticated, async (req, res) => {
 
   try {
     // Save order to DB
-    const { error } = await supabaseAdmin
+    const { error } = await getSupabaseAdmin()
       .from('payment_orders')
       .insert({
         trade_order_id,
@@ -817,7 +843,7 @@ app.post("/api/pay", isAuthenticated, async (req, res) => {
 
 app.get("/api/pay/status/:orderId", isAuthenticated, async (req, res) => {
   const { orderId } = req.params;
-  const { data: order } = await supabaseAdmin
+  const { data: order } = await getSupabaseAdmin()
     .from('payment_orders')
     .select('status')
     .eq('trade_order_id', orderId)
@@ -846,7 +872,7 @@ app.post("/api/webhook/xunhupay", async (req, res) => {
   if (status === 'OD') { // OD means success in Xunhupay
     try {
       // Use a transaction-like approach (idempotent)
-      const { data: order, error: orderError } = await supabaseAdmin
+      const { data: order, error: orderError } = await getSupabaseAdmin()
         .from('payment_orders')
         .select('*')
         .eq('trade_order_id', trade_order_id)
@@ -856,7 +882,7 @@ app.post("/api/webhook/xunhupay", async (req, res) => {
       if (order.status === 'success') return res.send('success'); // Already processed
 
       // Update order status
-      const { error: updateOrderError } = await supabaseAdmin
+      const { error: updateOrderError } = await getSupabaseAdmin()
         .from('payment_orders')
         .update({ status: 'success' })
         .eq('trade_order_id', trade_order_id);
@@ -864,13 +890,13 @@ app.post("/api/webhook/xunhupay", async (req, res) => {
       if (updateOrderError) throw updateOrderError;
 
       // Update user balance
-      const { data: profile } = await supabaseAdmin
+      const { data: profile } = await getSupabaseAdmin()
         .from('profiles')
         .select('herbs_balance')
         .eq('id', order.user_id)
         .single();
 
-      const { error: updateProfileError } = await supabaseAdmin
+      const { error: updateProfileError } = await getSupabaseAdmin()
         .from('profiles')
         .update({ herbs_balance: (profile?.herbs_balance || 0) + order.herbs_added })
         .eq('id', order.user_id);
@@ -1032,7 +1058,7 @@ K线：${klineText}
       const report = response.data.output.choices[0].message.content;
       
       // Save to Supabase
-      await supabaseAdmin.from('health_reports').insert({
+      await getSupabaseAdmin().from('health_reports').insert({
         user_id: req.session.userId,
         report_type: 'wuyun',
         content: { report, wylq_summary, kline_data }
@@ -1133,7 +1159,7 @@ ${roomRules}
         const parsed = JSON.parse(jsonStr);
         
         // Save to Supabase
-        await supabaseAdmin.from('health_reports').insert({
+        await getSupabaseAdmin().from('health_reports').insert({
           user_id: req.session.userId,
           report_type: 'spatial',
           content: parsed
@@ -1242,7 +1268,7 @@ ${ZIWEI_HEALTH_KNOWLEDGE_BASE}
         const parsed = JSON.parse(jsonStr);
 
         // Save to Supabase
-        await supabaseAdmin.from('health_reports').insert({
+        await getSupabaseAdmin().from('health_reports').insert({
           user_id: req.session.userId,
           report_type: 'ziwei',
           content: parsed
