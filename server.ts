@@ -1,7 +1,6 @@
 import express from "express";
 import session from "express-session";
 import bcrypt from "bcryptjs";
-import Database from "better-sqlite3";
 import { Solar, Lunar } from "lunar-javascript";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -40,27 +39,6 @@ declare module "express-session" {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Initialize Database
-const db = new Database("database.sqlite");
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE TABLE IF NOT EXISTS history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    birth_date TEXT NOT NULL,
-    wylq_data TEXT NOT NULL,
-    report_text TEXT,
-    base_score REAL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  );
-`);
 
 async function startServer() {
   const app = express();
@@ -147,13 +125,20 @@ async function startServer() {
     return md5(signStr);
   };
 
-app.delete("/api/history/:id", isAuthenticated, (req, res) => {
+app.delete("/api/history/:id", isAuthenticated, async (req, res) => {
   const { id } = req.params;
-  const result = db.prepare("DELETE FROM history WHERE id = ? AND user_id = ?").run(id, req.session.userId);
-  if (result.changes > 0) {
+  try {
+    const { error } = await getSupabaseAdmin()
+      .from('user_history')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', req.session.userId);
+    
+    if (error) throw error;
     res.json({ success: true });
-  } else {
-    res.status(404).json({ error: "记录不存在" });
+  } catch (error: any) {
+    console.error("Delete history error:", error);
+    res.status(500).json({ error: "删除失败" });
   }
 });
 
@@ -952,12 +937,23 @@ app.post("/api/webhook/xunhupay", async (req, res) => {
   }
 });
 
-app.get("/api/history", isAuthenticated, (req, res) => {
-  const history = db.prepare("SELECT * FROM history WHERE user_id = ? ORDER BY created_at DESC").all(req.session.userId);
-  res.json(history.map((h: any) => ({ ...h, wylq_data: JSON.parse(h.wylq_data) })));
+app.get("/api/history", isAuthenticated, async (req, res) => {
+  try {
+    const { data: history, error } = await getSupabaseAdmin()
+      .from('user_history')
+      .select('*')
+      .eq('user_id', req.session.userId)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    res.json(history || []);
+  } catch (error: any) {
+    console.error("Fetch history error:", error);
+    res.status(500).json({ error: "获取历史记录失败" });
+  }
 });
 
-app.post("/api/calculate", (req, res) => {
+app.post("/api/calculate", async (req, res) => {
   try {
     const { year, month, day } = req.body;
     console.log(`Calculating K-line for: ${year}-${month}-${day}`);
@@ -999,11 +995,23 @@ app.post("/api/calculate", (req, res) => {
     }
     let historyId = null;
     if (req.session.userId) {
-      const birthDateStr = `${year}-${month}-${day}`;
-      const wylqDataStr = JSON.stringify({ wylq_summary, kline_data });
-      const result = db.prepare("INSERT INTO history (user_id, birth_date, wylq_data, base_score) VALUES (?, ?, ?, ?)")
-        .run(req.session.userId, birthDateStr, wylqDataStr, engine.baseScore);
-      historyId = result.lastInsertRowid;
+      const birthDateStr = `${y}-${m}-${d}`;
+      const { data: historyData, error: historyError } = await getSupabaseAdmin()
+        .from('user_history')
+        .insert({
+          user_id: req.session.userId,
+          birth_date: birthDateStr,
+          wylq_data: { wylq_summary, kline_data },
+          base_score: engine.baseScore
+        })
+        .select()
+        .single();
+      
+      if (historyError) {
+        console.error("Failed to save history to Supabase:", historyError);
+      } else {
+        historyId = historyData.id;
+      }
     }
     res.json({ wylq_summary, kline_data, base_score: engine.baseScore, historyId });
   } catch (error: any) {
