@@ -1351,11 +1351,16 @@ export default function App() {
                   { id: 'year', label: "出生年份", value: year, setter: setYear, options: years },
                   { id: 'month', label: "月份", value: month, setter: setMonth, options: months },
                   { id: 'day', label: "日期", value: day, setter: setDay, options: days },
-                  { id: 'gender', label: "性别", value: gender, setter: setGender, options: ['male', 'female'], labels: { 'male': '乾造 (男)', 'female': '坤造 (女)' } },
-                  { id: 'time', label: "时辰", value: timeIndex, setter: setTimeIndex, options: TIME_OPTIONS.map((_, i) => i), labels: TIME_OPTIONS }
+                  { id: 'gender', label: "性别", note: "矩阵必需", value: gender, setter: setGender, options: ['male', 'female'], labels: { 'male': '乾造 (男)', 'female': '坤造 (女)' } },
+                  { id: 'time', label: "时辰", note: "矩阵必需", value: timeIndex, setter: setTimeIndex, options: TIME_OPTIONS.map((_, i) => i), labels: TIME_OPTIONS }
                 ].map((item) => (
                   <div key={item.id} className="space-y-3">
-                    <label className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] ml-1">{item.label}</label>
+                    <div className="flex items-center justify-between px-1">
+                      <label className="text-[10px] text-zinc-500 uppercase tracking-[0.2em]">{item.label}</label>
+                      {item.note && (
+                        <span className="text-[9px] text-jade/60 font-medium">{item.note}</span>
+                      )}
+                    </div>
                     <div className="relative group">
                       <select 
                         value={item.value}
@@ -1821,7 +1826,7 @@ export default function App() {
             <SectionHeader 
               number="04" 
               title="空间能量" 
-              subtitle="居住环境健康风险分析引擎"
+              subtitle="居住环境健康风险分析引擎：AI 深度扫描房屋布局对你健康的潜在风险"
             />
 
             <div className="grid lg:grid-cols-12 gap-12">
