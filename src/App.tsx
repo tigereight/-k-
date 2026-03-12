@@ -37,6 +37,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 import { LoginModal } from './components/LoginModal';
+import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { RechargeModal } from './components/RechargeModal';
 import { supabase } from './lib/supabase';
 
@@ -539,6 +540,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'matrix' | 'insight' | 'spatial' | 'history' | 'profile'>('home');
   const [user, setUser] = useState<UserInfo>({ loggedIn: false });
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
@@ -944,15 +946,10 @@ export default function App() {
 
   const chartRef = useRef<any>(null);
 
-  const [loginModalMode, setLoginModalMode] = useState<'login' | 'signup' | 'reset-password'>('login');
-
   const checkUser = async () => {
     try {
       const res = await axios.get<UserInfo>('/api/me');
       setUser(res.data);
-      if (res.data.loggedIn && isLoginModalOpen) {
-        setIsLoginModalOpen(false);
-      }
     } catch (err) {
       setUser({ loggedIn: false });
     } finally {
@@ -967,58 +964,26 @@ export default function App() {
     if (day > days) setDay(days);
   }, [year, month]);
 
-  // Check for reset password in URL
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('reset') === 'true') {
-      setLoginModalMode('reset-password');
-      setIsLoginModalOpen(true);
-    }
-  }, []);
-
   // Check auth status
   useEffect(() => {
     checkUser();
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event);
-      
       if (event === 'PASSWORD_RECOVERY') {
-        setLoginModalMode('reset-password');
-        setIsLoginModalOpen(true);
+        setIsResetPasswordModalOpen(true);
       }
-
+      
       if (session) {
-        await axios.post('/api/login', { 
-          access_token: session.access_token,
-          refresh_token: session.refresh_token 
-        });
+        await axios.post('/api/login', { access_token: session.access_token });
         checkUser();
-      } else if (event === 'SIGNED_OUT') {
+      } else {
         await axios.post('/api/logout');
         setUser({ loggedIn: false });
       }
     });
 
-    // Polling for session (helps with same-browser tab sync)
-    const interval = setInterval(async () => {
-      if (!user.loggedIn) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session && !user.loggedIn) {
-          await axios.post('/api/login', { 
-            access_token: session.access_token,
-            refresh_token: session.refresh_token 
-          });
-          checkUser();
-        }
-      }
-    }, 5000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearInterval(interval);
-    };
-  }, [user.loggedIn]);
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Load history when tab changes
   useEffect(() => {
@@ -2782,8 +2747,10 @@ export default function App() {
       <LoginModal 
         isOpen={isLoginModalOpen} 
         onClose={() => setIsLoginModalOpen(false)} 
-        initialMode={loginModalMode}
-        onRefresh={checkUser}
+      />
+      <ResetPasswordModal
+        isOpen={isResetPasswordModalOpen}
+        onClose={() => setIsResetPasswordModalOpen(false)}
       />
       <RechargeModal 
         isOpen={isRechargeModalOpen} 
