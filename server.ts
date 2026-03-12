@@ -9,15 +9,21 @@ import axios from "axios";
 import { GoogleGenAI } from "@google/genai";
 import "dotenv/config";
 import { createServer as createViteServer } from "vite";
+import { createClient } from '@supabase/supabase-js';
+import md5 from 'md5';
+import fs from "fs";
+
+// Initialize Supabase Admin
+const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 declare module "express-session" {
   interface SessionData {
-    userId: number;
+    userId: string; // Changed to string for Supabase UUID
     insightMessages: any[];
   }
 }
-
-import fs from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,6 +74,51 @@ async function startServer() {
     } else {
       res.status(401).json({ error: "未登录" });
     }
+  };
+
+  // Helper to check and deduct herbs
+  const checkAndDeductHerbs = async (userId: string, amount: number = 2) => {
+    // 1. Get current balance
+    const { data: profile, error: getError } = await supabaseAdmin
+      .from('profiles')
+      .select('herbs_balance')
+      .eq('id', userId)
+      .single();
+
+    if (getError || !profile) {
+      throw new Error("无法获取用户余额");
+    }
+
+    if (profile.herbs_balance < amount) {
+      const err: any = new Error("余额不足");
+      err.status = 402;
+      throw err;
+    }
+
+    // 2. Deduct herbs
+    const { error: updateError } = await supabaseAdmin
+      .from('profiles')
+      .update({ herbs_balance: profile.herbs_balance - amount })
+      .eq('id', userId);
+
+    if (updateError) {
+      throw new Error("扣费失败");
+    }
+
+    return true;
+  };
+
+  // Xunhupay Helper
+  const generateXunhupaySign = (params: any, secret: string) => {
+    const sortedKeys = Object.keys(params).sort();
+    let signStr = '';
+    for (const key of sortedKeys) {
+      if (params[key] !== '' && params[key] !== null && params[key] !== undefined) {
+        signStr += `${key}=${params[key]}&`;
+      }
+    }
+    signStr = signStr.slice(0, -1) + secret;
+    return md5(signStr);
   };
 
 app.delete("/api/history/:id", isAuthenticated, (req, res) => {
@@ -670,39 +721,170 @@ const ZIWEI_HEALTH_KNOWLEDGE_BASE = `
 // API Routes
 // ==========================================
 
-app.post("/api/register", async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: "邮箱和密码不能为空" });
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const stmt = db.prepare("INSERT INTO users (email, password) VALUES (?, ?)");
-    const result = stmt.run(email, hashedPassword);
-    req.session.userId = result.lastInsertRowid as number;
-    res.json({ success: true, userId: req.session.userId });
-  } catch (error: any) {
-    if (error.message.includes("UNIQUE constraint failed")) res.status(400).json({ error: "该邮箱已被注册" });
-    else res.status(500).json({ error: "注册失败" });
-  }
-});
-
 app.post("/api/login", async (req, res) => {
-  const { email, password } = req.body;
-  const user: any = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
-  if (user && await bcrypt.compare(password, user.password)) {
+  const { access_token, refresh_token } = req.body;
+  if (!access_token) return res.status(400).json({ error: "Token missing" });
+
+  try {
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(access_token);
+    if (error || !user) throw error;
+
     req.session.userId = user.id;
-    res.json({ success: true, email: user.email });
-  } else res.status(401).json({ error: "邮箱或密码错误" });
+    res.json({ success: true, user });
+  } catch (error: any) {
+    res.status(401).json({ error: "登录验证失败" });
+  }
 });
 
 app.post("/api/logout", (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-app.get("/api/me", (req, res) => {
+app.get("/api/me", async (req, res) => {
   if (req.session.userId) {
-    const user: any = db.prepare("SELECT email FROM users WHERE id = ?").get(req.session.userId);
-    res.json({ loggedIn: true, email: user?.email });
-  } else res.json({ loggedIn: false });
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
+      .eq('id', req.session.userId)
+      .single();
+    res.json({ loggedIn: true, user: profile });
+  } else {
+    res.json({ loggedIn: false });
+  }
+});
+
+// Xunhupay Routes
+const RECHARGE_PACKAGES: Record<string, { amount: number, herbs: number }> = {
+  'p1': { amount: 10, herbs: 10 },
+  'p2': { amount: 30, herbs: 33 },
+  'p3': { amount: 50, herbs: 60 },
+};
+
+app.post("/api/pay", isAuthenticated, async (req, res) => {
+  const { packageId } = req.body;
+  const pkg = RECHARGE_PACKAGES[packageId];
+  if (!pkg) return res.status(400).json({ error: "无效的套餐" });
+
+  const trade_order_id = `ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const appId = process.env.XUNHUPAY_APPID!;
+  const appSecret = process.env.XUNHUPAY_APP_SECRET!;
+  const payUrl = process.env.XUNHUPAY_PAY_URL!;
+  const notifyUrl = `${process.env.APP_URL}/api/webhook/xunhupay`;
+
+  const params: any = {
+    version: '1.1',
+    appid: appId,
+    trade_order_id: trade_order_id,
+    total_fee: pkg.amount.toString(),
+    title: `充值 ${pkg.herbs} 棵草药`,
+    time: Math.floor(Date.now() / 1000).toString(),
+    notify_url: notifyUrl,
+    nonce_str: Math.random().toString(36).substr(2, 15),
+    type: 'WAP', // or JSAPI/NATIVE
+    wap_url: process.env.APP_URL,
+    wap_name: '健康K线'
+  };
+
+  params.hash = generateXunhupaySign(params, appSecret);
+
+  try {
+    // Save order to DB
+    const { error } = await supabaseAdmin
+      .from('payment_orders')
+      .insert({
+        trade_order_id,
+        user_id: req.session.userId,
+        amount_cny: pkg.amount,
+        herbs_added: pkg.herbs,
+        status: 'pending'
+      });
+
+    if (error) throw error;
+
+    // Call Xunhupay
+    const response = await axios.post(payUrl, params);
+    if (response.data && response.data.url) {
+      res.json({ pay_url: response.data.url, order_id: trade_order_id });
+    } else {
+      console.error('Xunhupay error:', response.data);
+      res.status(500).json({ error: response.data.errmsg || "支付网关响应异常" });
+    }
+  } catch (error: any) {
+    console.error('Payment initiation error:', error);
+    res.status(500).json({ error: "发起支付失败" });
+  }
+});
+
+app.get("/api/pay/status/:orderId", isAuthenticated, async (req, res) => {
+  const { orderId } = req.params;
+  const { data: order } = await supabaseAdmin
+    .from('payment_orders')
+    .select('status')
+    .eq('trade_order_id', orderId)
+    .eq('user_id', req.session.userId)
+    .single();
+  
+  res.json({ status: order?.status || 'not_found' });
+});
+
+app.post("/api/webhook/xunhupay", async (req, res) => {
+  const params = req.body;
+  const appSecret = process.env.XUNHUPAY_APP_SECRET!;
+  
+  // 1. Verify signature
+  const receivedHash = params.hash;
+  delete params.hash;
+  const calculatedHash = generateXunhupaySign(params, appSecret);
+
+  if (receivedHash !== calculatedHash) {
+    console.error('Invalid webhook signature');
+    return res.send('error');
+  }
+
+  // 2. Process payment
+  const { trade_order_id, status } = params;
+  if (status === 'OD') { // OD means success in Xunhupay
+    try {
+      // Use a transaction-like approach (idempotent)
+      const { data: order, error: orderError } = await supabaseAdmin
+        .from('payment_orders')
+        .select('*')
+        .eq('trade_order_id', trade_order_id)
+        .single();
+
+      if (orderError || !order) throw new Error("Order not found");
+      if (order.status === 'success') return res.send('success'); // Already processed
+
+      // Update order status
+      const { error: updateOrderError } = await supabaseAdmin
+        .from('payment_orders')
+        .update({ status: 'success' })
+        .eq('trade_order_id', trade_order_id);
+
+      if (updateOrderError) throw updateOrderError;
+
+      // Update user balance
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('herbs_balance')
+        .eq('id', order.user_id)
+        .single();
+
+      const { error: updateProfileError } = await supabaseAdmin
+        .from('profiles')
+        .update({ herbs_balance: (profile?.herbs_balance || 0) + order.herbs_added })
+        .eq('id', order.user_id);
+
+      if (updateProfileError) throw updateProfileError;
+
+      res.send('success');
+    } catch (error) {
+      console.error('Webhook processing error:', error);
+      res.send('error');
+    }
+  } else {
+    res.send('success');
+  }
 });
 
 app.get("/api/history", isAuthenticated, (req, res) => {
@@ -827,8 +1009,11 @@ ${CONSTITUTION_KNOWLEDGE_BASE}
   }
 });
 
-app.post("/api/generate-report", async (req, res) => {
+app.post("/api/generate-report", isAuthenticated, async (req, res) => {
   try {
+    // 1. Check and deduct herbs
+    await checkAndDeductHerbs(req.session.userId!);
+
     const { wylq_summary, kline_data, historyId } = req.body;
     const apiKey = process.env.DASHSCOPE_API_KEY || process.env.API_KEY;
     if (!apiKey) return res.status(500).json({ error: "服务器未配置 API Key" });
@@ -842,18 +1027,30 @@ K线：${klineText}
       input: { prompt: prompt },
       parameters: { result_format: "message" }
     }, { headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" } });
+    
     if (response.data?.output?.choices) {
       const report = response.data.output.choices[0].message.content;
-      if (req.session.userId && historyId) db.prepare("UPDATE history SET report_text = ? WHERE id = ? AND user_id = ?").run(report, historyId, req.session.userId);
+      
+      // Save to Supabase
+      await supabaseAdmin.from('health_reports').insert({
+        user_id: req.session.userId,
+        report_type: 'wuyun',
+        content: { report, wylq_summary, kline_data }
+      });
+
       res.json({ report });
     } else res.status(500).json({ error: "AI 响应异常" });
   } catch (error: any) {
+    if (error.status === 402) return res.status(402).json({ error: "草药余额不足，请充值" });
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post("/api/generate-spatial-report", async (req, res) => {
+app.post("/api/generate-spatial-report", isAuthenticated, async (req, res) => {
   try {
+    // 1. Check and deduct herbs
+    await checkAndDeductHerbs(req.session.userId!);
+
     const { placements } = req.body;
     const apiKey = process.env.DASHSCOPE_API_KEY || process.env.API_KEY;
     if (!apiKey) return res.status(500).json({ error: "服务器未配置 API Key" });
@@ -934,6 +1131,14 @@ ${roomRules}
           }
         }
         const parsed = JSON.parse(jsonStr);
+        
+        // Save to Supabase
+        await supabaseAdmin.from('health_reports').insert({
+          user_id: req.session.userId,
+          report_type: 'spatial',
+          content: parsed
+        });
+
         res.json(parsed);
       } catch (e) {
         res.json({ report: content, riskScores: { environmentalStress: 50, spatialResonance: 50, biologicalResponse: 50, overallRisk: 50 } });
@@ -942,13 +1147,17 @@ ${roomRules}
       res.status(500).json({ error: "AI 响应异常" });
     }
   } catch (error: any) {
+    if (error.status === 402) return res.status(402).json({ error: "草药余额不足，请充值" });
     console.error("Spatial report API error:", error.message);
     res.status(500).json({ error: "生成空间报告时发生错误" });
   }
 });
 
-app.post("/api/generate-health-report", async (req, res) => {
+app.post("/api/generate-health-report", isAuthenticated, async (req, res) => {
   try {
+    // 1. Check and deduct herbs
+    await checkAndDeductHerbs(req.session.userId!);
+
     const { astrolabeData } = req.body;
     const apiKey = process.env.DASHSCOPE_API_KEY || process.env.API_KEY;
     if (!apiKey) return res.status(500).json({ error: "服务器未配置 API Key" });
@@ -1031,6 +1240,14 @@ ${ZIWEI_HEALTH_KNOWLEDGE_BASE}
           }
         }
         const parsed = JSON.parse(jsonStr);
+
+        // Save to Supabase
+        await supabaseAdmin.from('health_reports').insert({
+          user_id: req.session.userId,
+          report_type: 'ziwei',
+          content: parsed
+        });
+
         res.json(parsed);
       } catch (e) {
         // Fallback if not JSON
@@ -1040,6 +1257,7 @@ ${ZIWEI_HEALTH_KNOWLEDGE_BASE}
       res.status(500).json({ error: "AI 响应异常" });
     }
   } catch (error: any) {
+    if (error.status === 402) return res.status(402).json({ error: "草药余额不足，请充值" });
     console.error("Health report API error:", error.response?.data || error.message);
     res.status(500).json({ error: error.response?.data?.message || error.message || "生成报告时发生未知错误" });
   }

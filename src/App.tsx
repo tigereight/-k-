@@ -36,6 +36,10 @@ import { astro } from 'iztro';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+import { LoginModal } from './components/LoginModal';
+import { RechargeModal } from './components/RechargeModal';
+import { supabase } from './lib/supabase';
+
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -69,7 +73,11 @@ interface ReportResponse {
 
 interface UserInfo {
   loggedIn: boolean;
-  email?: string;
+  user?: {
+    id: string;
+    email: string;
+    herbs_balance: number;
+  };
 }
 
 interface HistoryItem {
@@ -428,6 +436,10 @@ export default function App() {
   };
 
   const generateHealthReport = async () => {
+    if (!user.loggedIn) {
+      setIsLoginModalOpen(true);
+      return;
+    }
     if (!astrolabeData) return;
     setIsGeneratingHealthReport(true);
     setHealthReport(null);
@@ -444,21 +456,30 @@ export default function App() {
       
       const rawReport = response.data.report || "未能生成报告，请稍后再试。";
       setHealthReport(formatAIReport(rawReport));
+      checkUser(); // Refresh balance
       
       // Scroll to report
       setTimeout(() => {
         document.getElementById('health-report-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } catch (err: any) {
-      console.error("Health report generation failed", err);
-      const errorMsg = err.response?.data?.error || err.message || "未知错误";
-      setHealthReport(`生成报告时发生错误: ${errorMsg}\n\n请检查网络连接或稍后再试。`);
+      if (err.response?.status === 402) {
+        setIsRechargeModalOpen(true);
+      } else {
+        console.error("Health report generation failed", err);
+        const errorMsg = err.response?.data?.error || err.message || "未知错误";
+        setHealthReport(`生成报告时发生错误: ${errorMsg}\n\n请检查网络连接或稍后再试。`);
+      }
     } finally {
       setIsGeneratingHealthReport(false);
     }
   };
   
   const generateSpatialReport = async () => {
+    if (!user.loggedIn) {
+      setIsLoginModalOpen(true);
+      return;
+    }
     setIsGeneratingSpatialReport(true);
     setSpatialReport(null);
 
@@ -489,13 +510,18 @@ export default function App() {
         setSpatialRiskScores(response.data.riskScores);
       }
       setSpatialReport(formatAIReport(response.data.report));
+      checkUser(); // Refresh balance
       
       setTimeout(() => {
         document.getElementById('spatial-report-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } catch (err: any) {
-      console.error("Spatial report generation failed", err);
-      setSpatialReport("生成空间分析报告时发生错误，请稍后再试。");
+      if (err.response?.status === 402) {
+        setIsRechargeModalOpen(true);
+      } else {
+        console.error("Spatial report generation failed", err);
+        setSpatialReport("生成空间分析报告时发生错误，请稍后再试。");
+      }
     } finally {
       setIsGeneratingSpatialReport(false);
     }
@@ -510,6 +536,9 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<'home' | 'matrix' | 'insight' | 'spatial' | 'history' | 'profile'>('home');
   const [user, setUser] = useState<UserInfo>({ loggedIn: false });
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
   // Spatial Energy State
   const [spatialRooms, setSpatialRooms] = useState<any[]>([]);
@@ -907,15 +936,21 @@ export default function App() {
   const [isInsightLoading, setIsInsightLoading] = useState(false);
   const [constitutionData, setConstitutionData] = useState<any>(null);
 
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [authError, setAuthError] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const chartRef = useRef<any>(null);
+
+  const checkUser = async () => {
+    try {
+      const res = await axios.get<UserInfo>('/api/me');
+      setUser(res.data);
+    } catch (err) {
+      setUser({ loggedIn: false });
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  };
 
   // Initialize days
   useEffect(() => {
@@ -926,7 +961,19 @@ export default function App() {
 
   // Check auth status
   useEffect(() => {
-    axios.get<UserInfo>('/api/me').then(res => setUser(res.data));
+    checkUser();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        await axios.post('/api/login', { access_token: session.access_token });
+        checkUser();
+      } else {
+        await axios.post('/api/logout');
+        setUser({ loggedIn: false });
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Load history when tab changes
@@ -954,23 +1001,6 @@ export default function App() {
       console.error("Failed to load history", err);
     } finally {
       setIsLoadingHistory(false);
-    }
-  };
-
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError('');
-    try {
-      const endpoint = authMode === 'login' ? '/api/login' : '/api/register';
-      const res = await axios.post(endpoint, { email, password });
-      if (res.data.success) {
-        setUser({ loggedIn: true, email: email });
-        setShowAuthModal(false);
-        setEmail('');
-        setPassword('');
-      }
-    } catch (err: any) {
-      setAuthError(err.response?.data?.error || "操作失败");
     }
   };
 
@@ -1014,6 +1044,10 @@ export default function App() {
   };
 
   const handleGenerateReport = async () => {
+    if (!user.loggedIn) {
+      setIsLoginModalOpen(true);
+      return;
+    }
     if (!calcData) return;
     setIsGeneratingReport(true);
 
@@ -1025,13 +1059,18 @@ export default function App() {
       });
       setReport(formatAIReport(response.data.report));
       setHasGeneratedReport(true);
+      checkUser(); // Refresh balance
       
       setTimeout(() => {
         document.getElementById('report-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
-    } catch (error) {
-      console.error("Report generation error:", error);
-      alert("报告生成失败，请稍后重试。");
+    } catch (error: any) {
+      if (error.response?.status === 402) {
+        setIsRechargeModalOpen(true);
+      } else {
+        console.error("Report generation error:", error);
+        alert("报告生成失败，请稍后重试。");
+      }
     } finally {
       setIsGeneratingReport(false);
     }
@@ -1224,86 +1263,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-obsidian selection:bg-jade/30 pb-24">
-      {/* Auth Modal */}
-      <AnimatePresence>
-        {showAuthModal && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-obsidian/80 backdrop-blur-md"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className="glass-panel w-full max-w-md p-8 relative"
-            >
-              <button 
-                onClick={() => setShowAuthModal(false)}
-                className="absolute top-4 right-4 p-2 text-zinc-500 hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="text-center mb-8">
-                <h3 className="text-2xl font-bold text-white serif mb-2">
-                  {authMode === 'login' ? '欢迎回来' : '开启探索'}
-                </h3>
-                <p className="text-zinc-500 text-sm">
-                  {authMode === 'login' ? '登录以同步您的健康历史' : '注册以保存您的 AHI 演算记录'}
-                </p>
-              </div>
-
-              <form onSubmit={handleAuth} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] text-zinc-500 uppercase tracking-widest ml-1">电子邮箱</label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
-                    <input 
-                      type="email" 
-                      required
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="your@email.com"
-                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-jade/50 transition-all"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] text-zinc-500 uppercase tracking-widest ml-1">密码</label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
-                    <input 
-                      type="password" 
-                      required
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-jade/50 transition-all"
-                    />
-                  </div>
-                </div>
-
-                {authError && <p className="text-red-400 text-xs text-center">{authError}</p>}
-
-                <button type="submit" className="btn-primary w-full mt-4">
-                  {authMode === 'login' ? '立即登录' : '创建账户'}
-                </button>
-              </form>
-
-              <div className="mt-6 text-center">
-                <button 
-                  onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-                  className="text-xs text-zinc-500 hover:text-jade transition-colors"
-                >
-                  {authMode === 'login' ? '还没有账户？立即注册' : '已有账户？返回登录'}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Main Content Sections */}
       <AnimatePresence mode="wait">
         {activeTab === 'home' && (
@@ -1463,7 +1422,7 @@ export default function App() {
                     <p className="text-xs text-jade/80">登录后可永久保存您的演算记录与 AI 报告</p>
                   </div>
                   <button 
-                    onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
+                    onClick={() => setIsLoginModalOpen(true)}
                     className="text-xs font-bold text-jade hover:underline"
                   >
                     立即登录
@@ -2335,7 +2294,7 @@ export default function App() {
                   <p className="text-zinc-500 text-sm">您的测算记录将安全地存储在云端，随时随地回顾。</p>
                 </div>
                 <button 
-                  onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
+                  onClick={() => setIsLoginModalOpen(true)}
                   className="btn-primary"
                 >
                   立即登录
@@ -2420,59 +2379,118 @@ export default function App() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="py-32 px-6 max-w-2xl mx-auto"
+            className="py-32 px-6 max-w-4xl mx-auto space-y-12"
           >
             <SectionHeader 
               number="06" 
               title="个人中心" 
-              subtitle="管理您的账户与偏好设置"
+              subtitle="管理您的账户、草药余额与偏好设置"
             />
 
             {!user.loggedIn ? (
-              <div className="glass-panel p-12 text-center space-y-6">
-                <div className="w-16 h-16 rounded-full bg-gold/5 flex items-center justify-center mx-auto">
-                  <User className="w-8 h-8 text-gold/30" />
+              <div className="glass-panel p-16 text-center space-y-8">
+                <div className="w-24 h-24 rounded-full bg-gold/5 flex items-center justify-center mx-auto border border-white/5">
+                  <User className="w-10 h-10 text-gold/20" />
                 </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-white serif">尚未登录</h3>
-                  <p className="text-zinc-500 text-sm">登录以解锁更多高级功能与个性化建议。</p>
+                <div className="space-y-3">
+                  <h3 className="text-2xl font-bold text-white serif">尚未登录</h3>
+                  <p className="text-zinc-500 max-w-sm mx-auto">登录以解锁报告生成、草药充值及历史记录同步功能。</p>
                 </div>
                 <button 
-                  onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
-                  className="btn-primary bg-gold hover:bg-gold/90"
+                  onClick={() => setIsLoginModalOpen(true)}
+                  className="bg-jade hover:bg-jade-dark text-white font-bold px-10 py-4 rounded-2xl transition-all shadow-lg shadow-jade/20"
                 >
                   立即登录
                 </button>
               </div>
             ) : (
-              <div className="space-y-6">
-                <div className="glass-panel p-8 flex items-center gap-6">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-jade to-gold flex items-center justify-center text-2xl font-bold text-white serif">
-                    {user.email?.[0].toUpperCase()}
+              <div className="space-y-8">
+                {/* User Info & Balance */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="md:col-span-1 glass-panel p-8 flex flex-col items-center text-center space-y-4">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-jade to-gold flex items-center justify-center text-3xl font-bold text-white serif shadow-xl">
+                      {user.user?.email?.[0].toUpperCase()}
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-bold text-white serif truncate w-full max-w-[180px]">{user.user?.email}</h3>
+                      <p className="text-zinc-500 text-[10px] uppercase tracking-[0.2em]">正式会员</p>
+                    </div>
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-400 hover:text-red-400 hover:bg-red-500/5 transition-all text-xs font-medium flex items-center justify-center gap-2"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      退出登录
+                    </button>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white serif">{user.email}</h3>
-                    <p className="text-zinc-500 text-xs mt-1 uppercase tracking-widest">Premium Member</p>
+
+                  <div className="md:col-span-2 glass-panel p-8 bg-gradient-to-br from-jade/10 to-transparent border-jade/20 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:scale-110 transition-transform">
+                      <Zap className="w-48 h-48 text-jade" />
+                    </div>
+                    <div className="relative z-10 h-full flex flex-col justify-between space-y-6">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-jade text-[10px] font-bold uppercase tracking-[0.2em]">
+                          <Zap className="w-3.5 h-3.5" />
+                          当前草药余额
+                        </div>
+                        <div className="flex items-baseline gap-3">
+                          <span className="text-7xl font-black text-white tracking-tighter">{user.user?.herbs_balance}</span>
+                          <span className="text-xl text-jade font-bold serif">棵 🌿</span>
+                        </div>
+                        <p className="text-zinc-500 text-xs leading-relaxed max-w-sm">
+                          草药是健康K线的虚拟能量，用于生成专业报告。每次生成消耗 2 棵草药。
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => setIsRechargeModalOpen(true)}
+                        className="bg-jade hover:bg-jade-dark text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-lg shadow-jade/20 flex items-center justify-center gap-2 w-full md:w-auto"
+                      >
+                        <Zap className="w-5 h-5" />
+                        立即充值
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid gap-4">
-                  <button className="glass-panel p-6 flex items-center justify-between hover:bg-white/[0.05] transition-all text-left">
-                    <div className="flex items-center gap-4">
-                      <Shield className="w-5 h-5 text-zinc-500" />
-                      <span className="text-zinc-300">账户安全</span>
+                {/* Account Settings */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="glass-panel p-8 space-y-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center border border-gold/20">
+                        <Shield className="w-5 h-5 text-gold" />
+                      </div>
+                      <h3 className="text-lg font-bold text-white serif">账户安全</h3>
                     </div>
-                    <ChevronDown className="w-4 h-4 text-zinc-700 -rotate-90" />
-                  </button>
-                  <button 
-                    onClick={handleLogout}
-                    className="glass-panel p-6 flex items-center justify-between hover:bg-red-500/10 transition-all text-left group"
-                  >
-                    <div className="flex items-center gap-4">
-                      <LogOut className="w-5 h-5 text-red-400" />
-                      <span className="text-red-400">退出登录</span>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center py-3 border-b border-white/5">
+                        <span className="text-zinc-400 text-sm">邮箱验证</span>
+                        <span className="text-jade text-sm font-bold">已验证</span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 border-b border-white/5">
+                        <span className="text-zinc-400 text-sm">数据加密</span>
+                        <span className="text-jade text-sm font-bold">AES-256</span>
+                      </div>
                     </div>
-                  </button>
+                  </div>
+
+                  <div className="glass-panel p-8 flex flex-col justify-between space-y-6">
+                    <div className="space-y-4">
+                      <div className="w-10 h-10 rounded-xl bg-jade/10 flex items-center justify-center border border-jade/20">
+                        <FileText className="w-5 h-5 text-jade" />
+                      </div>
+                      <h3 className="text-lg font-bold text-white serif">数据同步</h3>
+                      <p className="text-zinc-500 text-sm leading-relaxed">
+                        您的所有报告数据均已进行端到端加密，并同步至云端。
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => setActiveTab('history')}
+                      className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-all text-sm font-medium"
+                    >
+                      查看历史报告
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -2673,6 +2691,15 @@ export default function App() {
           font-weight: bold;
         }
       `}</style>
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+      />
+      <RechargeModal 
+        isOpen={isRechargeModalOpen} 
+        onClose={() => setIsRechargeModalOpen(false)} 
+        onSuccess={checkUser}
+      />
     </div>
   );
 }
