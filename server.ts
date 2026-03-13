@@ -778,9 +778,9 @@ app.get("/api/me", async (req, res) => {
 
 // Xunhupay Routes
 const RECHARGE_PACKAGES: Record<string, { amount: number, herbs: number }> = {
-  'p1': { amount: 10, herbs: 10 },
-  'p2': { amount: 30, herbs: 33 },
-  'p3': { amount: 50, herbs: 60 },
+  'p1': { amount: 4, herbs: 6 },
+  'p2': { amount: 10, herbs: 16 },
+  'p3': { amount: 20, herbs: 30 },
 };
 
 app.post("/api/pay", isAuthenticated, async (req, res) => {

@@ -11,9 +11,9 @@ interface RechargeModalProps {
 }
 
 const PACKAGES = [
-  { id: 'p1', amount: 10, herbs: 10, label: '初试草药' },
-  { id: 'p2', amount: 30, herbs: 33, label: '进阶草药', popular: true },
-  { id: 'p3', amount: 50, herbs: 60, label: '至尊草药' },
+  { id: 'p1', amount: 4, herbs: 6, label: '初试草药' },
+  { id: 'p2', amount: 10, herbs: 16, label: '进阶草药', popular: true },
+  { id: 'p3', amount: 20, herbs: 30, label: '至尊草药' },
 ];
 
 export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, onSuccess }) => {

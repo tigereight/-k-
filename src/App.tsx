@@ -2067,6 +2067,15 @@ export default function App() {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            <div className="mt-24 pt-12 border-t border-white/5 text-center space-y-2">
+              <p className="text-zinc-600 text-[10px] tracking-[0.3em] uppercase">
+                基于传统中医运气学说 · 仅供学术研究参考 · 不作为医疗诊断依据
+              </p>
+              <p className="text-zinc-700 text-[9px] tracking-widest uppercase opacity-50">
+                Technical support by yijing-fengshui engine | Powered by Health K-Line AI
+              </p>
+            </div>
           </motion.section>
         )}
 
