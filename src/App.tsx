@@ -2591,9 +2591,14 @@ export default function App() {
             <span className="text-lg font-bold text-white serif tracking-widest uppercase">AHI System</span>
           </div>
           
-          <p className="text-zinc-600 text-[10px] tracking-[0.3em] uppercase text-center md:text-right">
-            基于传统中医运气学说 · 仅供学术研究参考 · 不作为医疗诊断依据
-          </p>
+          <div className="flex flex-col gap-2 text-center md:text-right">
+            <p className="text-zinc-600 text-[10px] tracking-[0.3em] uppercase">
+              基于传统中医运气学说 · 仅供学术研究参考 · 不作为医疗诊断依据
+            </p>
+            <p className="text-zinc-700 text-[9px] tracking-widest uppercase opacity-50">
+              Technical support by yijing-fengshui engine | Powered by Health K-Line AI
+            </p>
+          </div>
         </div>
       </footer>
 
