@@ -1,4 +1,5 @@
 import express from "express";
+console.log("Starting server...");
 import session from "express-session";
 import bcrypt from "bcryptjs";
 import { Solar, Lunar } from "lunar-javascript";
