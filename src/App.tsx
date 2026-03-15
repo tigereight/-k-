@@ -1302,18 +1302,17 @@ export default function App() {
         >
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="h-px w-12 bg-jade/50"></div>
-            <span className="text-[10px] uppercase tracking-[0.5em] text-jade font-medium">Ancient Wisdom // Modern Insight</span>
+            <span className="text-[10px] uppercase tracking-[0.5em] text-jade font-medium">Traditional Wisdom // AI-Powered Health</span>
             <div className="h-px w-12 bg-jade/50"></div>
           </div>
           
           <h1 className="text-6xl md:text-8xl font-bold text-white tracking-tighter serif leading-tight">
-            五运六气<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-jade via-white to-gold">健康分析系统</span>
+            全息生命节律<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-jade via-white to-gold">健康资产管理系统</span>
           </h1>
           
           <p className="text-xl text-zinc-500 max-w-2xl mx-auto font-light leading-relaxed tracking-wide">
-            基于《黄帝内经》运气学说，演算天人感应之律。<br />
-            探索生命周期中的 AHI (Annual Harmony Index) 动态趋势。
+            结合《黄帝内经》时空医学与 AI 大模型算法，为您揭示先天体质弱点、预测全生命周期健康趋势、提供居住空间能量优化方案。了解身体节律，掌握健康主动权。
           </p>
 
           <div className="pt-12">
@@ -1323,7 +1322,7 @@ export default function App() {
               whileTap={{ scale: 0.95 }}
               className="group inline-flex items-center gap-3 px-10 py-5 bg-white text-obsidian rounded-full font-bold transition-all hover:bg-jade hover:text-white"
             >
-              <span>开启演算</span>
+              <span>免费生成专属健康图谱</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </motion.a>
           </div>
@@ -1335,14 +1334,66 @@ export default function App() {
         </div>
       </section>
 
+      {/* Features Grid Section */}
+      <section className="py-24 px-6 max-w-7xl mx-auto">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            {
+              icon: <Activity className="w-6 h-6 text-jade" />,
+              title: "逐年健康 K 线图",
+              desc: "基于五运六气气象医学模型，推演您 0-60 岁的逐年健康起伏趋势与关键转折点。",
+              color: "jade"
+            },
+            {
+              icon: <Compass className="w-6 h-6 text-gold" />,
+              title: "脏腑经络弱点扫描",
+              desc: "透过东方星象算法，透视您十二脏腑经络的先天能量强弱，提供结构性健康风险预警。",
+              color: "gold"
+            },
+            {
+              icon: <Shield className="w-6 h-6 text-blue-400" />,
+              title: "居住环境应力评估",
+              desc: "精算房屋空间布局对人体生物节律的影响，帮您规避隐形的环境健康杀手。",
+              color: "blue"
+            },
+            {
+              icon: <MessageSquare className="w-6 h-6 text-purple-400" />,
+              title: "AI 专家中医问诊",
+              desc: "基于最新中医体质学说，通过多轮智能对话精准辨识您的九种体质并提供养生建议。",
+              color: "purple"
+            }
+          ].map((feature, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              viewport={{ once: true }}
+              className="glass-panel p-8 space-y-4 hover:bg-white/[0.05] transition-all group"
+            >
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center mb-6",
+                feature.color === 'jade' ? "bg-jade/10" : 
+                feature.color === 'gold' ? "bg-gold/10" : 
+                feature.color === 'blue' ? "bg-blue-400/10" : "bg-purple-400/10"
+              )}>
+                {feature.icon}
+              </div>
+              <h3 className="text-lg font-bold text-white serif">{feature.title}</h3>
+              <p className="text-sm text-zinc-500 leading-relaxed font-light">{feature.desc}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
       {/* Input Section */}
       <section id="input-section" className="py-32 px-6 max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-24 items-center">
           <div>
             <SectionHeader 
               number="01" 
-              title="先天排盘" 
-              subtitle="输入您的出生日期，系统将根据天文历法精确定位您的先天运气格局。"
+              title="Step 01 / 建立生命体质基线模型" 
+              subtitle="在中医学中，您出生时的时空环境决定了先天的体质底色。请输入您的基本信息，系统将进行本地加密演算。（您的数据仅用于生成报告，绝不上传泄露）"
             />
             
             <div className="space-y-12">
@@ -1351,8 +1402,8 @@ export default function App() {
                   { id: 'year', label: "出生年份", value: year, setter: setYear, options: years },
                   { id: 'month', label: "月份", value: month, setter: setMonth, options: months },
                   { id: 'day', label: "日期", value: day, setter: setDay, options: days },
-                  { id: 'gender', label: "性别", note: "矩阵必需", value: gender, setter: setGender, options: ['male', 'female'], labels: { 'male': '乾造 (男)', 'female': '坤造 (女)' } },
-                  { id: 'time', label: "时辰", note: "矩阵必需", value: timeIndex, setter: setTimeIndex, options: TIME_OPTIONS.map((_, i) => i), labels: TIME_OPTIONS }
+                  { id: 'gender', label: "性别", note: "深度分析所需", value: gender, setter: setGender, options: ['male', 'female'], labels: { 'male': '乾造 (男)', 'female': '坤造 (女)' } },
+                  { id: 'time', label: "时辰", note: "深度分析所需", value: timeIndex, setter: setTimeIndex, options: TIME_OPTIONS.map((_, i) => i), labels: TIME_OPTIONS }
                 ].map((item) => (
                   <div key={item.id} className="space-y-3">
                     <div className="flex items-center justify-between px-1">
@@ -1453,7 +1504,7 @@ export default function App() {
                 <div className="lg:col-span-1 space-y-8">
                   <SectionHeader 
                     number="02" 
-                    title="运气概要" 
+                    title="Step 02 / 先天体质与流年环境" 
                     subtitle="先天底色与当日气场格局"
                   />
                   
@@ -1493,7 +1544,7 @@ export default function App() {
                   <div className="flex justify-between items-end mb-8">
                     <SectionHeader 
                       number="03" 
-                      title="AHI 动态趋势" 
+                      title="Step 03 / 年度健康指数趋势图 (0-60岁)" 
                       subtitle="0-60岁全生命周期健康指数 K 线分析"
                     />
                     <div className="flex items-center gap-4 mb-12">
@@ -1559,7 +1610,10 @@ export default function App() {
                   ) : (
                     <div className="flex items-center gap-3">
                       <Activity className="w-5 h-5" />
-                      <span>生成专属报告 (消耗2草药)</span>
+                      <div className="flex flex-col items-start">
+                        <span>生成专属报告 (消耗2草药)</span>
+                        <span className="text-[9px] opacity-60 font-light">获取由 AI 结合古籍精算出的万字深度解析</span>
+                      </div>
                     </div>
                   )}
                 </button>
@@ -1635,9 +1689,9 @@ export default function App() {
                     <HeartPulse className="w-4 h-4" />
                     AI Health Insight
                   </div>
-                  <h2 className="text-2xl md:text-5xl font-bold text-white serif tracking-tight">星河坐标下的生命图谱</h2>
+                  <h2 className="text-2xl md:text-5xl font-bold text-white serif tracking-tight">先天脏腑经络能量图谱</h2>
                   <p className="text-zinc-500 text-sm md:text-lg max-w-2xl mx-auto leading-relaxed">
-                    星曜为引，经络为纲。这是一份专属于您的生命底层说明书。我们不讨论疾病，我们只讨论如何让这台精密的生物机器，在时间的洪流中保持永恒的稳态。
+                    结合东方星象矩阵与中医经络学说，为您扫描身体系统的先天能量分布。寻找隐藏的健康风险敞口，提前进行干预与保养。
                   </p>
                   <button 
                     onClick={generateHealthReport}
@@ -1825,7 +1879,7 @@ export default function App() {
           >
             <SectionHeader 
               number="04" 
-              title="空间能量" 
+              title="环境与生物节律分析 (空间健康引擎)" 
               subtitle="居住环境健康风险分析引擎：AI 深度扫描房屋布局对你健康的潜在风险"
             />
 
@@ -2601,8 +2655,8 @@ export default function App() {
           </div>
           
           <div className="flex flex-col gap-2 text-center md:text-right">
-            <p className="text-zinc-600 text-[10px] tracking-[0.3em] uppercase">
-              基于传统中医运气学说 · 仅供学术研究参考 · 不作为医疗诊断依据
+            <p className="text-zinc-500 text-[11px] font-medium tracking-wide max-w-2xl ml-auto">
+              本系统基于传统中医古籍算法与前沿 AI 大模型生成。分析结果仅供预防医学、个人养生保健及学术文化研究参考。系统无法替代执业医师的专业诊断。若有不适，请务必及时就医。
             </p>
             <p className="text-zinc-700 text-[9px] tracking-widest uppercase opacity-50">
               Technical support by yijing-fengshui engine | Powered by Health K-Line AI
