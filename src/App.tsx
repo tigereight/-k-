@@ -309,7 +309,7 @@ const SectionHeader = ({ title, subtitle, number }: { title: string; subtitle?: 
       <span className="text-[9px] font-mono text-jade tracking-[0.3em] uppercase">Phase {number}</span>
       <div className="h-px flex-1 bg-white/10"></div>
     </div>
-    <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight serif">{title}</h2>
+    <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight serif">{title}</h2>
     {subtitle && <p className="text-zinc-500 mt-2 text-sm tracking-wide">{subtitle}</p>}
   </div>
 );
@@ -463,7 +463,10 @@ export default function App() {
       
       // Scroll to report
       setTimeout(() => {
-        document.getElementById('health-report-section')?.scrollIntoView({ behavior: 'smooth' });
+        const element = document.getElementById('health-report-section');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }, 100);
     } catch (err: any) {
       if (err.response?.status === 402) {
@@ -516,7 +519,10 @@ export default function App() {
       checkUser(); // Refresh balance
       
       setTimeout(() => {
-        document.getElementById('spatial-report-section')?.scrollIntoView({ behavior: 'smooth' });
+        const element = document.getElementById('spatial-report-section');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }, 100);
     } catch (err: any) {
       if (err.response?.status === 402) {
@@ -1123,8 +1129,20 @@ export default function App() {
     if (!calcData) return {};
     
     return {
-      backgroundColor: 'transparent',
+      backgroundColor: '#050505',
       animationDuration: 2000,
+      title: {
+        text: 'AHI (天人和谐) 全生命周期趋势图',
+        left: 'center',
+        top: 10,
+        textStyle: { color: '#fff', fontSize: 16, fontWeight: 'bold', fontFamily: 'serif' }
+      },
+      legend: {
+        bottom: 10,
+        left: 'center',
+        textStyle: { color: '#666', fontSize: 10 },
+        data: ['能量升华', '能量损耗', '先天基准']
+      },
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'cross', lineStyle: { color: 'rgba(255,255,255,0.1)' } },
@@ -1149,9 +1167,12 @@ export default function App() {
           `;
         }
       },
-      grid: { left: '2%', right: '2%', bottom: '5%', top: '5%', containLabel: true },
+      grid: { left: '5%', right: '8%', bottom: '15%', top: '15%', containLabel: true },
       xAxis: { 
         type: 'category', 
+        name: '年龄 (岁)',
+        nameLocation: 'end',
+        nameTextStyle: { color: '#444', fontSize: 10, padding: [0, 0, 0, 10] },
         data: calcData.kline_data.map(d => d.age), 
         axisLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }, 
         axisLabel: { color: '#666', fontSize: 10, margin: 15 }, 
@@ -1161,29 +1182,52 @@ export default function App() {
         scale: true, 
         min: 0, 
         max: 100, 
+        name: '健康能量指数',
+        nameLocation: 'end',
+        nameTextStyle: { color: '#444', fontSize: 10, padding: [0, 0, 10, 0] },
         axisLine: { show: false }, 
         axisLabel: { color: '#666', fontSize: 10 }, 
         splitLine: { lineStyle: { color: 'rgba(255,255,255,0.02)' } } 
       },
-      series: [{
-        type: 'candlestick',
-        data: calcData.kline_data.map(d => [d.open, d.close, Math.min(d.open, d.close), Math.max(d.open, d.close)]),
-        itemStyle: { 
-          color: '#00A86B', 
-          color0: '#FF4444', 
-          borderColor: '#00A86B', 
-          borderColor0: '#FF4444', 
-          borderWidth: 1 
+      series: [
+        {
+          name: '能量升华',
+          type: 'candlestick',
+          data: [], // Dummy for legend
+          itemStyle: { color: '#00A86B' }
         },
-        markLine: { 
-          symbol: ['none', 'none'], 
-          data: [{ 
-            yAxis: calcData.base_score, 
-            lineStyle: { color: 'rgba(212,175,55,0.2)', type: 'dashed' }, 
-            label: { show: false } 
-          }] 
+        {
+          name: '能量损耗',
+          type: 'candlestick',
+          data: [], // Dummy for legend
+          itemStyle: { color: '#FF4444' }
+        },
+        {
+          name: '先天基准',
+          type: 'line',
+          data: [], // Dummy for legend
+          lineStyle: { color: 'rgba(212,175,55,0.4)', type: 'dashed' }
+        },
+        {
+          type: 'candlestick',
+          data: calcData.kline_data.map(d => [d.open, d.close, Math.min(d.open, d.close), Math.max(d.open, d.close)]),
+          itemStyle: { 
+            color: '#00A86B', 
+            color0: '#FF4444', 
+            borderColor: '#00A86B', 
+            borderColor0: '#FF4444', 
+            borderWidth: 1 
+          },
+          markLine: { 
+            symbol: ['none', 'none'], 
+            data: [{ 
+              yAxis: calcData.base_score, 
+              lineStyle: { color: 'rgba(212,175,55,0.2)', type: 'dashed' }, 
+              label: { show: false } 
+            }] 
+          }
         }
-      }]
+      ]
     };
   };
 
@@ -1337,8 +1381,8 @@ export default function App() {
           </div>
           
           <h1 className="text-6xl md:text-8xl font-bold text-white tracking-tighter serif leading-tight">
-            全息生命节律<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-jade via-white to-gold">健康资产管理系统</span>
+            健康K线<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-jade via-white to-gold">个人健康资产预测系统</span>
           </h1>
           
           <p className="text-xl text-zinc-500 max-w-2xl mx-auto font-light leading-relaxed tracking-wide">
@@ -1370,7 +1414,7 @@ export default function App() {
           {[
             {
               icon: <Activity className="w-6 h-6 text-jade" />,
-              title: "逐年健康 K 线图",
+              title: "逐年健康K线图",
               desc: "基于五运六气气象医学模型，推演您 0-60 岁的逐年健康起伏趋势与关键转折点。",
               color: "jade",
               action: () => document.getElementById('input-section')?.scrollIntoView({ behavior: 'smooth' })
@@ -1384,8 +1428,8 @@ export default function App() {
             },
             {
               icon: <Shield className="w-6 h-6 text-blue-400" />,
-              title: "居住环境应力评估",
-              desc: "精算房屋空间布局对人体生物节律的影响，帮您规避隐形的环境健康杀手。",
+              title: "居住空间风险扫描",
+              desc: "基于阳宅健康理论，精算房屋空间布局对人体生物节律的影响，帮您规避隐形的环境健康杀手。",
               color: "blue",
               action: () => setActiveTab('spatial')
             },
@@ -1482,7 +1526,7 @@ export default function App() {
                 ) : (
                   <>
                     <Zap className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                    <span className="text-lg">生成健康 K 线图</span>
+                    <span className="text-lg">生成健康K线图</span>
                   </>
                 )}
               </button>
@@ -1627,31 +1671,34 @@ export default function App() {
                   <FileText className="w-10 h-10 text-gold/40" />
                 </div>
                 <div className="max-w-xl space-y-4">
-                  <h3 className="text-3xl font-bold text-white serif">深度生命周期洞察</h3>
+                  <h3 className="text-3xl font-bold text-white serif">五运六气AI 健康节律解析</h3>
                   <p className="text-zinc-500 font-light leading-relaxed">
-                    系统已准备好为您生成一份深度融合古法智慧与现代审美的全生命周期健康洞察报告。
+                    基于《黄帝内经》运气学说，针对您的先天格局深度拆解未来 60 年的关键健康转折点，提供养生建议。
                   </p>
                 </div>
-                <button 
-                  onClick={handleGenerateReport}
-                  disabled={isGeneratingReport}
-                  className="btn-primary bg-gold hover:bg-gold/90 hover:shadow-[0_0_20px_rgba(212,175,85,0.3)] min-w-[240px]"
-                >
-                  {isGeneratingReport ? (
-                    <div className="flex items-center gap-3">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>正在构建模型...</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <Activity className="w-5 h-5" />
-                      <div className="flex flex-col items-start">
-                        <span>生成专属报告 (消耗2草药)</span>
-                        <span className="text-[9px] opacity-60 font-light">获取由 AI 结合古籍精算出的万字深度解析</span>
+                <div className="flex flex-col items-center gap-4">
+                  <button 
+                    onClick={handleGenerateReport}
+                    disabled={isGeneratingReport}
+                    className="btn-primary bg-gold hover:bg-gold/90 hover:shadow-[0_0_20px_rgba(212,175,85,0.3)] min-w-[240px]"
+                  >
+                    {isGeneratingReport ? (
+                      <div className="flex items-center gap-3">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>正在从《黄帝内经》等 12 部经典中调取算法...</span>
                       </div>
-                    </div>
-                  )}
-                </button>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <Activity className="w-5 h-5" />
+                        <div className="flex flex-col items-start">
+                          <span>生成专属报告 (消耗2草药)</span>
+                          <span className="text-[9px] opacity-60 font-light">获取由 AI 结合古籍精算出的深度解析</span>
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                  <p className="text-[10px] text-zinc-600 italic">* 生成的报告将永久保存在您的“档案中心”中，支持随时查阅与导出。</p>
+                </div>
               </div>
             </div>
           </motion.section>
@@ -1729,23 +1776,26 @@ export default function App() {
                   <p className="text-zinc-500 text-sm md:text-lg max-w-2xl mx-auto leading-relaxed">
                     结合东方星象矩阵与中医经络学说，为您扫描身体系统的先天能量分布。寻找隐藏的健康风险敞口，提前进行干预与保养。
                   </p>
-                  <button 
-                    onClick={generateHealthReport}
-                    disabled={isGeneratingHealthReport}
-                    className="btn-primary px-8 md:px-12 py-4 md:py-5 text-base md:text-lg flex items-center justify-center gap-4 mx-auto group"
-                  >
-                    {isGeneratingHealthReport ? (
-                      <>
-                        <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
-                        正在深度解析命盘能量，这大概需要2分钟
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-5 h-5 md:w-6 md:h-6 group-hover:rotate-12 transition-transform" />
-                        立即生成命脉全息健康报告 (消耗2草药)
-                      </>
-                    )}
-                  </button>
+                  <div className="flex flex-col items-center gap-4">
+                    <button 
+                      onClick={generateHealthReport}
+                      disabled={isGeneratingHealthReport}
+                      className="btn-primary px-8 md:px-12 py-4 md:py-5 text-base md:text-lg flex items-center justify-center gap-4 mx-auto group"
+                    >
+                      {isGeneratingHealthReport ? (
+                        <>
+                          <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
+                          正在从《黄帝内经》等 12 部经典中调取算法...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-5 h-5 md:w-6 md:h-6 group-hover:rotate-12 transition-transform" />
+                          立即生成先天脏腑经络能量图谱 (消耗2草药)
+                        </>
+                      )}
+                    </button>
+                    <p className="text-[10px] text-zinc-600 italic">* 生成的报告将永久保存在您的“档案中心”中，支持随时查阅与导出。</p>
+                  </div>
                 </div>
 
                 {/* Health Report Display */}
@@ -1980,17 +2030,6 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-
-                <div className="glass-panel p-6 bg-jade/5 border-jade/20">
-                  <p className="text-[10px] text-jade/80 leading-relaxed">
-                    <strong>操作指引：</strong><br/>
-                    • 拖拽房间至画布布局。<br/>
-                    • 拖拽角色至卧室内。<br/>
-                    • 拖拽边角缩放，顶部圆点旋转。<br/>
-                    • 双击元素删除。<br/>
-                    • 旋转罗盘调整朝向。
-                  </p>
-                </div>
               </div>
 
               {/* Canvas Area */}
@@ -2069,9 +2108,21 @@ export default function App() {
                     <Zap className="w-8 h-8 text-gold" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-white serif">环境应力精算</h3>
-                    <p className="text-zinc-500 text-xs">基于阳宅健康理论，对当前空间布局进行生物节律响应评估。</p>
+                    <h3 className="text-xl font-bold text-white serif">居住空间风险扫描</h3>
+                    <p className="text-zinc-500 text-xs">基于阳宅健康理论，精算房屋空间布局对人体生物节律的影响，帮您规避隐形的环境健康杀手。</p>
                   </div>
+
+                  <div className="glass-panel p-4 bg-jade/5 border-jade/20 text-left">
+                    <p className="text-[10px] text-jade/80 leading-relaxed">
+                      <strong>操作指引：</strong><br/>
+                      • 拖拽房间至画布布局。<br/>
+                      • 拖拽角色至卧室内。<br/>
+                      • 拖拽边角缩放，顶部圆点旋转。<br/>
+                      • 双击元素删除。<br/>
+                      • 旋转罗盘调整朝向。
+                    </p>
+                  </div>
+
                   <button 
                     onClick={generateSpatialReport}
                     disabled={spatialRooms.length === 0 || isGeneratingSpatialReport}
@@ -2083,6 +2134,7 @@ export default function App() {
                       "生成空间健康报告 (消耗2草药)"
                     )}
                   </button>
+                  <p className="text-[10px] text-zinc-600 italic">* 生成的报告将永久保存在您的“档案中心”中，支持随时查阅与导出。</p>
                 </div>
 
                 {spatialReport && (
@@ -2691,7 +2743,7 @@ export default function App() {
             <div className="w-10 h-10 rounded-full bg-jade/10 flex items-center justify-center">
               <Shield className="w-5 h-5 text-jade" />
             </div>
-            <span className="text-lg font-bold text-white serif tracking-widest uppercase">AHI System</span>
+            <span className="text-lg font-bold text-white serif tracking-widest uppercase">健康K线 (Health K-Line) 系统</span>
           </div>
           
           <div className="flex flex-col gap-2 text-center md:text-right">
@@ -2699,7 +2751,7 @@ export default function App() {
               本系统基于传统中医古籍算法与前沿 AI 大模型生成。分析结果仅供预防医学、个人养生保健及学术文化研究参考。系统无法替代执业医师的专业诊断。若有不适，请务必及时就医。
             </p>
             <p className="text-zinc-700 text-[9px] tracking-widest uppercase opacity-50">
-              Technical support by yijing-fengshui engine | Powered by Health K-Line AI
+              Technical support by yijing-fengshui engine | 健康K线 (Health K-Line) 系统
             </p>
           </div>
         </div>
