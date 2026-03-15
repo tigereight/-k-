@@ -1408,7 +1408,7 @@ export default function App() {
           </h1>
           
           <p className="text-xl text-zinc-500 max-w-2xl mx-auto font-light leading-relaxed tracking-wide">
-            结合《黄帝内经》时空医学与 AI 大模型算法，为您揭示先天体质弱点、预测全生命周期健康趋势、提供居住空间能量优化方案。了解身体节律，掌握健康主动权。
+            以AI深度解析古籍：预判一生健康趋势，扫描脏腑弱点，优化居家布局 辨析个人体质，为您定制专属生命资产研报
           </p>
 
           <div className="pt-12">
@@ -1605,7 +1605,7 @@ export default function App() {
                 <div className="lg:col-span-1 space-y-8">
                   <SectionHeader 
                     number="02" 
-                    title="Step 02 / 先天体质与流年环境" 
+                    title="Step 02 / 五运六气先天体质与流年环境" 
                     subtitle="先天底色与当日气场格局"
                   />
                   
@@ -2330,28 +2330,69 @@ export default function App() {
                   className="btn-primary w-full py-5 flex items-center justify-center gap-3 group"
                 >
                   {isInsightLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform" />}
-                  <span>开始问诊</span>
+                  <span>进行体质辨识</span>
                 </button>
               </motion.div>
             ) : (
               <div className="space-y-12">
                 {/* Chat Interface */}
                 <div className="glass-panel flex flex-col h-[600px] overflow-hidden border-white/10 bg-black/20">
-                  <div className="p-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-jade rounded-full animate-pulse"></div>
-                      <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">AI 专家坐诊中</span>
+                  <div className="p-4 border-b border-white/5 bg-white/[0.02] flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 bg-jade rounded-full animate-pulse"></div>
+                        <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">AI 体质辨识官为您服务</span>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setInsightStep('form');
+                          setInsightMessages([]);
+                          setConstitutionData(null);
+                        }}
+                        className="text-[10px] text-zinc-600 hover:text-white transition-colors uppercase tracking-widest"
+                      >
+                        重新开始
+                      </button>
                     </div>
-                    <button 
-                      onClick={() => {
-                        setInsightStep('form');
-                        setInsightMessages([]);
-                        setConstitutionData(null);
-                      }}
-                      className="text-[10px] text-zinc-600 hover:text-white transition-colors uppercase tracking-widest"
-                    >
-                      重新开始
-                    </button>
+
+                    {/* Consultation Progress Indicator */}
+                    <div className="flex justify-center items-center gap-2 py-1">
+                      {constitutionData ? (
+                        <div className="flex items-center gap-2 text-jade text-[10px] font-bold uppercase tracking-widest">
+                          <ShieldCheck className="w-3 h-3" />
+                          辨识完成
+                        </div>
+                      ) : (
+                        <>
+                          {[...Array(10)].map((_, i) => {
+                            const currentRound = Math.ceil(insightMessages.length / 2);
+                            const isActive = i + 1 === currentRound;
+                            const isCompleted = i + 1 < currentRound;
+                            return (
+                              <div 
+                                key={i}
+                                className={cn(
+                                  "w-1.5 h-1.5 rounded-full transition-all duration-500 relative",
+                                  isActive ? "bg-gold scale-125" : 
+                                  isCompleted ? "bg-jade" : "bg-jade/20"
+                                )}
+                              >
+                                {isActive && (
+                                  <motion.div 
+                                    className="absolute inset-0 bg-gold rounded-full shadow-[0_0_8px_rgba(212,175,55,0.8)]"
+                                    animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.4, 1] }}
+                                    transition={{ repeat: Infinity, duration: 2 }}
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                          <span className="ml-2 text-[9px] text-zinc-500 font-mono uppercase tracking-tighter">
+                            Round {Math.min(10, Math.ceil(insightMessages.length / 2))}/10
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
@@ -2380,14 +2421,32 @@ export default function App() {
                       </motion.div>
                     ))}
                     {isInsightLoading && (
-                      <div className="flex gap-4 mr-auto">
-                        <div className="w-8 h-8 rounded-full bg-gold/20 text-gold flex items-center justify-center animate-pulse">
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex gap-4 mr-auto"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-gold/20 text-gold flex items-center justify-center">
                           <Activity className="w-4 h-4" />
                         </div>
-                        <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10">
-                          <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
+                        <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center gap-1">
+                          <motion.div
+                            animate={{ opacity: [0.3, 1, 0.3] }}
+                            transition={{ repeat: Infinity, duration: 1, delay: 0 }}
+                            className="w-1 h-1 bg-gold rounded-full"
+                          />
+                          <motion.div
+                            animate={{ opacity: [0.3, 1, 0.3] }}
+                            transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
+                            className="w-1 h-1 bg-gold rounded-full"
+                          />
+                          <motion.div
+                            animate={{ opacity: [0.3, 1, 0.3] }}
+                            transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
+                            className="w-1 h-1 bg-gold rounded-full"
+                          />
                         </div>
-                      </div>
+                      </motion.div>
                     )}
                     <div id="chat-end" />
                   </div>
