@@ -38,6 +38,38 @@
     @apply bg-white/[0.03] border border-white/[0.1] rounded-2xl px-4 py-3 text-white 
            focus:outline-none focus:border-jade/50 focus:bg-white/[0.05] transition-all;
   }
+
+  .custom-report-style {
+    @apply text-zinc-400 leading-relaxed text-sm;
+  }
+
+  .custom-report-style h2 {
+    @apply text-white font-bold text-xl mt-12 mb-6 tracking-wider border-l-4 border-jade pl-4;
+  }
+
+  .custom-report-style h3 {
+    @apply text-jade/90 font-bold text-lg mt-8 mb-4;
+  }
+
+  .custom-report-style p {
+    @apply mb-6 opacity-70 leading-8;
+  }
+
+  .custom-report-style strong {
+    @apply text-gold font-bold bg-gold/10 px-1 rounded;
+  }
+
+  .custom-report-style ul, .custom-report-style ol {
+    @apply mb-8 space-y-3;
+  }
+
+  .custom-report-style li {
+    @apply opacity-80 leading-7;
+  }
+
+  .custom-report-style blockquote {
+    @apply border-l-2 border-white/10 pl-6 italic text-zinc-500 my-8;
+  }
 }
 
 /* Custom animations */

@@ -441,8 +441,7 @@ export default function App() {
       .replace(/=>/g, ' ')
       .replace(/【/g, '\n\n## ')
       .replace(/】/g, '\n')
-      .replace(/(?<!#)#(?!#)/g, '') // Remove single # symbols that are not headers (scattered ones)
-      .replace(/[^\x00-\x7F\u4e00-\u9fa5，。？！；：‘’“”、《》〈〉（）【】—…\n\r\t ]/g, '') // Filter unusual special characters
+      .replace(/(?<!#)#(?!#)/g, '') // Remove single # symbols that are not headers
       
       // 4. Handle the [ ] section markers if AI still uses them
       .replace(/\[/g, '\n\n## ')
@@ -451,31 +450,32 @@ export default function App() {
       // 5. Ensure headers have a space after # for proper markdown parsing
       .replace(/^(#+)([^\s#])/mg, '$1 $2')
       
-      // 6. Collapse excessive newlines but keep double newlines for paragraphs
+      // 6. Special handling for keywords: Ensure bolded terms have breathing room if they seem like list items or key points
+      // If a line starts with ** and ends with **, it might be a sub-header.
+      // If it's in the middle of a paragraph, we might want to ensure it's not buried.
+      .replace(/\*\*([^*]+)\*\*/g, (match, p1) => {
+        return ` **${p1.trim()}** `; // Ensure spaces around bolded terms for better parsing
+      })
+      
+      // 7. Collapse excessive newlines but keep double newlines for paragraphs
       .replace(/\n{3,}/g, '\n\n')
       .trim();
 
-    // 7. Heuristic cleaning for each line
+    // 8. Heuristic cleaning for each line
     cleaned = cleaned.split('\n').map(line => {
       let trimmedLine = line.trim();
+      if (!trimmedLine) return '';
       
-      // Convert **Text** to ## Text if it's the whole line (likely a title)
+      // Convert **Text** to ### Text if it's the whole line and short (likely a title)
       const boldHeaderMatch = trimmedLine.match(/^\*\*(.*?)\*\*$/);
-      if (boldHeaderMatch && boldHeaderMatch[1].length < 60) {
-        return `## ${boldHeaderMatch[1]}`;
+      if (boldHeaderMatch && boldHeaderMatch[1].length < 40) {
+        return `### ${boldHeaderMatch[1]}`;
       }
       
-      // Remove any trailing backslashes
-      trimmedLine = trimmedLine.replace(/\\+$/, '');
-      
       return trimmedLine;
-    }).join('\n');
+    }).filter(Boolean).join('\n\n'); // Force double newlines between all blocks for "breathing room"
 
-    // 8. Final pass to ensure no weird artifacts remain
-    return cleaned
-      .replace(/\n\n\n+/g, '\n\n')
-      .replace(/\\/g, '') // Remove any remaining stray backslashes
-      .trim();
+    return cleaned;
   };
 
   const generateHealthReport = async () => {
@@ -1272,29 +1272,11 @@ export default function App() {
   };
 
   const renderReportContent = (text: string) => {
-    const lines = text.split('\n').filter(line => line.trim() !== '');
+    if (!text) return null;
+    const formatted = formatAIReport(text);
     return (
-      <div className="space-y-12 font-sans max-w-2xl mx-auto py-12">
-        {lines.map((line, idx) => {
-          const titleMatch = line.match(/^(?:\d+\.\s*)?【(.*?)】/);
-          if (titleMatch) {
-            return (
-              <div key={idx} className="mt-16 first:mt-0">
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-8 h-px bg-gold/30"></div>
-                  <h3 className="text-xl font-bold text-gold tracking-[0.2em] serif uppercase">{titleMatch[1]}</h3>
-                  <div className="flex-1 h-px bg-white/5"></div>
-                </div>
-              </div>
-            );
-          } else {
-            return (
-              <p key={idx} className="text-zinc-400 leading-[2] text-lg tracking-wide mb-8 font-light">
-                {line}
-              </p>
-            );
-          }
-        })}
+      <div className="prose prose-invert prose-jade max-w-none custom-report-style">
+        <Markdown remarkPlugins={[remarkGfm]}>{formatted}</Markdown>
       </div>
     );
   };
@@ -1910,8 +1892,8 @@ export default function App() {
 
                         <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
                           <div className="lg:col-span-3">
-                            <div className="prose prose-invert prose-jade max-w-none custom-report-style">
-                              <Markdown remarkPlugins={[remarkGfm]}>{healthReport}</Markdown>
+                            <div className="w-full">
+                              {renderReportContent(healthReport)}
                             </div>
                           </div>
                           
@@ -2254,8 +2236,8 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="prose prose-invert prose-jade max-w-none custom-report-style">
-                      <Markdown remarkPlugins={[remarkGfm]}>{spatialReport}</Markdown>
+                    <div className="w-full">
+                      {renderReportContent(spatialReport)}
                     </div>
 
                     <div className="mt-16 pt-8 border-t border-white/5 flex justify-between items-center">
@@ -2607,9 +2589,7 @@ export default function App() {
                         >
                           <div className="pt-6 border-t border-white/5 mt-2">
                             <div className="prose prose-invert prose-jade max-w-none custom-report-style">
-                              <Markdown remarkPlugins={[remarkGfm]}>
-                                {item.content.report}
-                              </Markdown>
+                              {renderReportContent(item.content.report)}
                             </div>
                             
                             {item.report_type === 'wuyun' && item.content.wylq_summary && (
