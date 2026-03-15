@@ -70,6 +70,14 @@
   .custom-report-style blockquote {
     @apply border-l-2 border-white/10 pl-6 italic text-zinc-500 my-8;
   }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 /* Custom animations */

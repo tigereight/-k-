@@ -276,15 +276,16 @@ const MatrixAstrolabe = ({ data }: { data: any }) => {
   const currentYearBranch = data.yearly?.earthlyBranch;
 
   return (
-    <div className="max-w-7xl mx-auto px-1 md:px-4 py-4 relative">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-jade/[0.01] rounded-full blur-[120px] pointer-events-none" />
-      
-      <motion.div 
-        initial="hidden"
-        animate="visible"
-        variants={{ visible: { transition: { staggerChildren: 0.01 } } }}
-        className="grid grid-cols-4 grid-rows-4 gap-0.5 md:gap-1.5 relative z-10 aspect-square md:aspect-auto md:h-[750px]"
-      >
+    <div className="max-w-7xl mx-auto px-1 md:px-4 py-4 relative overflow-x-auto scrollbar-hide">
+      <div className="min-w-[600px] md:min-w-0">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-jade/[0.01] rounded-full blur-[120px] pointer-events-none" />
+        
+        <motion.div 
+          initial="hidden"
+          animate="visible"
+          variants={{ visible: { transition: { staggerChildren: 0.01 } } }}
+          className="grid grid-cols-4 grid-rows-4 gap-0.5 md:gap-1.5 relative z-10 aspect-square md:aspect-auto md:h-[750px]"
+        >
         {gridMap.map((palaceIdx, gridIdx) => {
           if (palaceIdx !== null) {
             const palace = data.palaces[palaceIdx];
@@ -337,6 +338,7 @@ const MatrixAstrolabe = ({ data }: { data: any }) => {
           return null;
         })}
       </motion.div>
+      </div>
     </div>
   );
 };
@@ -622,6 +624,7 @@ export default function App() {
   // Spatial Energy State
   const [spatialRooms, setSpatialRooms] = useState<any[]>([]);
   const [spatialPersons, setSpatialPersons] = useState<any[]>([]);
+  const [selectedTool, setSelectedTool] = useState<{ type: 'room' | 'person', value: string, icon: string } | null>(null);
   const [compassRotation, setCompassRotation] = useState(0);
   const [selectedRoomIdx, setSelectedRoomIdx] = useState<number | null>(null);
   const [selectedPersonIdx, setSelectedPersonIdx] = useState<number | null>(null);
@@ -629,6 +632,7 @@ export default function App() {
   const [dragMode, setDragMode] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [originalState, setOriginalState] = useState<any>(null);
+  const [hasDragged, setHasDragged] = useState(false);
 
   const ROOM_MIN_SIZE = 60;
   const ROOM_DEFAULT_SIZE = 100;
@@ -782,6 +786,7 @@ export default function App() {
   }, [activeTab, spatialRooms, spatialPersons, compassRotation, selectedRoomIdx, selectedPersonIdx]);
 
   const handleSpatialMouseDown = (e: React.MouseEvent) => {
+    setHasDragged(false);
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -839,6 +844,7 @@ export default function App() {
 
   const handleSpatialMouseMove = (e: React.MouseEvent) => {
     if (!dragMode) return;
+    setHasDragged(true);
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -919,6 +925,46 @@ export default function App() {
     }
     setDragMode(null);
     setOriginalState(null);
+  };
+
+  const handleSpatialClick = (e: React.MouseEvent) => {
+    if (!selectedTool || hasDragged) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (selectedTool.type === 'person') {
+      const bedroomIdx = findBedroomAt(x, y);
+      if (bedroomIdx !== null) {
+        const bedroom = spatialRooms[bedroomIdx];
+        setSpatialPersons(prev => {
+          const filtered = prev.filter(p => p.value !== selectedTool.value);
+          const count = filtered.filter(p => p.bedroomId === bedroomIdx).length;
+          return [...filtered, {
+            value: selectedTool.value,
+            icon: selectedTool.icon,
+            bedroomId: bedroomIdx,
+            offsetX: (count % 2) * 30 - 15,
+            offsetY: Math.floor(count / 2) * 25
+          }];
+        });
+        setSelectedTool(null);
+      }
+    } else {
+      setSpatialRooms(prev => [...prev, {
+        type: selectedTool.type,
+        value: selectedTool.value,
+        icon: selectedTool.icon,
+        x: x - ROOM_DEFAULT_SIZE / 2,
+        y: y - ROOM_DEFAULT_SIZE / 2,
+        w: ROOM_DEFAULT_SIZE,
+        h: ROOM_DEFAULT_SIZE,
+        rotation: 0
+      }]);
+      setSelectedTool(null);
+    }
   };
 
   const handleSpatialDoubleClick = (e: React.MouseEvent) => {
@@ -1431,7 +1477,7 @@ export default function App() {
       </section>
 
       {/* Features Grid Section */}
-      <section id="features-section" className="py-24 px-6 max-w-7xl mx-auto">
+      <section id="features-section" className="py-12 md:py-24 px-6 max-w-7xl mx-auto">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
             {
@@ -1488,7 +1534,7 @@ export default function App() {
       </section>
 
       {/* Input Section */}
-      <section id="input-section" className="py-32 px-6 max-w-7xl mx-auto">
+      <section id="input-section" className="py-8 md:py-32 px-6 max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-24 items-center">
           <div>
             <SectionHeader 
@@ -1524,7 +1570,7 @@ export default function App() {
                             (item.setter as React.Dispatch<React.SetStateAction<number>>)(parseInt(val));
                           }
                         }}
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-white appearance-none focus:outline-none focus:border-jade/50 transition-all group-hover:bg-white/[0.05]"
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-white text-base md:text-sm appearance-none focus:outline-none focus:border-jade/50 transition-all group-hover:bg-white/[0.05]"
                       >
                         {item.options.map((opt, idx) => (
                           <option key={opt} value={opt} className="bg-obsidian">
@@ -1579,7 +1625,7 @@ export default function App() {
             id="results-section"
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
-            className="py-32 px-6 bg-ink/50 border-y border-white/[0.03]"
+            className="py-8 md:py-32 px-6 bg-ink/50 border-y border-white/[0.03]"
           >
             <div className="max-w-7xl mx-auto space-y-24">
               {!user.loggedIn && (
@@ -1709,7 +1755,7 @@ export default function App() {
               </div>
 
               {/* Report Trigger */}
-              <div className="flex flex-col items-center justify-center py-24 text-center space-y-8 border-t border-white/5">
+              <div className="flex flex-col items-center justify-center py-12 md:py-24 text-center space-y-8 border-t border-white/5">
                 <div className="w-20 h-20 rounded-full bg-gold/5 flex items-center justify-center">
                   <FileText className="w-10 h-10 text-gold/40" />
                 </div>
@@ -1755,7 +1801,7 @@ export default function App() {
             id="report-section"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="py-32 px-6 bg-obsidian"
+            className="py-8 md:py-32 px-6 bg-obsidian"
           >
             <div className="max-w-4xl mx-auto">
               <div className="flex justify-between items-center mb-24">
@@ -1979,7 +2025,7 @@ export default function App() {
                 </AnimatePresence>
               </div>
             ) : (
-              <div className="py-32 px-6 text-center max-w-md mx-auto space-y-6">
+              <div className="py-8 md:py-32 px-6 text-center max-w-md mx-auto space-y-6">
                 <div className="w-16 h-16 rounded-full bg-jade/5 flex items-center justify-center mx-auto">
                   <Compass className="w-8 h-8 text-jade/30" />
                 </div>
@@ -2005,7 +2051,7 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="py-32 px-6 max-w-7xl mx-auto min-h-screen"
+            className="py-8 md:py-32 px-6 max-w-7xl mx-auto min-h-screen"
           >
             <SectionHeader 
               number="04" 
@@ -2013,9 +2059,9 @@ export default function App() {
               subtitle="居住环境健康风险分析引擎：AI 深度扫描房屋布局对你健康的潜在风险"
             />
 
-            <div className="grid lg:grid-cols-12 gap-12">
+            <div className="flex flex-col lg:grid lg:grid-cols-12 gap-12">
               {/* Toolbox */}
-              <div className="lg:col-span-3 space-y-8">
+              <div className="lg:col-span-3 space-y-8 order-2 lg:order-1">
                 <div className="glass-panel p-6 space-y-6">
                   <h3 className="text-xs font-bold text-jade uppercase tracking-widest border-b border-white/5 pb-2">家庭角色</h3>
                   <div className="grid grid-cols-2 gap-2">
@@ -2037,7 +2083,17 @@ export default function App() {
                           e.dataTransfer.setData('value', person.value);
                           e.dataTransfer.setData('icon', person.icon);
                         }}
-                        className="flex flex-col items-center justify-center p-3 bg-white/[0.02] border border-white/5 rounded-xl cursor-grab hover:bg-white/[0.05] transition-all active:cursor-grabbing"
+                        onClick={() => {
+                          if (selectedTool?.value === person.value) {
+                            setSelectedTool(null);
+                          } else {
+                            setSelectedTool({ type: 'person', value: person.value, icon: person.icon });
+                          }
+                        }}
+                        className={cn(
+                          "flex flex-col items-center justify-center p-3 bg-white/[0.02] border border-white/5 rounded-xl cursor-grab hover:bg-white/[0.05] transition-all active:cursor-grabbing",
+                          selectedTool?.value === person.value && "border-jade bg-jade/10 ring-1 ring-jade/30"
+                        )}
                       >
                         <span className="text-2xl mb-1">{person.icon}</span>
                         <span className="text-[10px] text-zinc-400">{person.value}</span>
@@ -2065,7 +2121,17 @@ export default function App() {
                           e.dataTransfer.setData('value', room.value);
                           e.dataTransfer.setData('icon', room.icon);
                         }}
-                        className="flex flex-col items-center justify-center p-3 bg-white/[0.02] border border-white/5 rounded-xl cursor-grab hover:bg-white/[0.05] transition-all active:cursor-grabbing"
+                        onClick={() => {
+                          if (selectedTool?.value === room.value) {
+                            setSelectedTool(null);
+                          } else {
+                            setSelectedTool({ type: 'room', value: room.value, icon: room.icon });
+                          }
+                        }}
+                        className={cn(
+                          "flex flex-col items-center justify-center p-3 bg-white/[0.02] border border-white/5 rounded-xl cursor-grab hover:bg-white/[0.05] transition-all active:cursor-grabbing",
+                          selectedTool?.value === room.value && "border-gold bg-gold/10 ring-1 ring-gold/30"
+                        )}
                       >
                         <span className="text-2xl mb-1">{room.icon}</span>
                         <span className="text-[10px] text-zinc-400">{room.value}</span>
@@ -2076,8 +2142,8 @@ export default function App() {
               </div>
 
               {/* Canvas Area */}
-              <div className="lg:col-span-6">
-                <div className="glass-panel p-4 h-[600px] relative overflow-hidden flex flex-col">
+              <div className="lg:col-span-6 order-3 lg:order-2">
+                <div className="glass-panel p-4 h-[400px] md:h-[600px] relative overflow-hidden flex flex-col">
                   <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-jade rounded-full animate-pulse"></div>
@@ -2101,7 +2167,11 @@ export default function App() {
                       onDoubleClick={handleSpatialDoubleClick}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={handleSpatialDrop}
-                      className="w-full h-full cursor-crosshair"
+                      onClick={handleSpatialClick}
+                      className={cn(
+                        "w-full h-full",
+                        selectedTool ? "cursor-crosshair" : "cursor-default"
+                      )}
                     />
                     
                     {/* Compass UI */}
@@ -2145,7 +2215,7 @@ export default function App() {
               </div>
 
               {/* Analysis Trigger & Results */}
-              <div className="lg:col-span-3 space-y-8">
+              <div className="lg:col-span-3 space-y-8 order-1 lg:order-3">
                 <div className="glass-panel p-8 text-center space-y-6">
                   <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center mx-auto">
                     <Zap className="w-8 h-8 text-gold" />
@@ -2272,7 +2342,7 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="py-32 px-6 max-w-4xl mx-auto min-h-screen"
+            className="py-8 md:py-32 px-6 max-w-4xl mx-auto min-h-screen"
           >
             <SectionHeader 
               number="07" 
@@ -2300,7 +2370,7 @@ export default function App() {
                     <select 
                       value={insightAge}
                       onChange={(e) => setInsightAge(e.target.value)}
-                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-jade/50 transition-all"
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-white text-base md:text-sm focus:outline-none focus:border-jade/50 transition-all"
                     >
                       <option value="" className="bg-obsidian">请选择年龄段</option>
                       <option value="少年 (0-18岁)" className="bg-obsidian">少年 (0-18岁)</option>
@@ -2315,7 +2385,7 @@ export default function App() {
                     <select 
                       value={insightGender}
                       onChange={(e) => setInsightGender(e.target.value)}
-                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-jade/50 transition-all"
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-5 py-4 text-white text-base md:text-sm focus:outline-none focus:border-jade/50 transition-all"
                     >
                       <option value="" className="bg-obsidian">请选择性别</option>
                       <option value="男" className="bg-obsidian">男</option>
@@ -2336,7 +2406,7 @@ export default function App() {
             ) : (
               <div className="space-y-12">
                 {/* Chat Interface */}
-                <div className="glass-panel flex flex-col h-[600px] overflow-hidden border-white/10 bg-black/20">
+                <div className="glass-panel flex flex-col h-[500px] md:h-[600px] lg:h-[calc(100vh-20rem)] overflow-hidden border-white/10 bg-black/20">
                   <div className="p-4 border-b border-white/5 bg-white/[0.02] flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -2458,7 +2528,7 @@ export default function App() {
                         value={insightInput}
                         onChange={(e) => setInsightInput(e.target.value)}
                         placeholder="输入您的回答..."
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-6 pr-16 py-4 text-white focus:outline-none focus:border-jade/50 transition-all"
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-6 pr-16 py-4 text-white text-base md:text-sm focus:outline-none focus:border-jade/50 transition-all"
                       />
                       <button 
                         type="submit"
@@ -2551,7 +2621,7 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="py-32 px-6 max-w-4xl mx-auto"
+            className="py-8 md:py-32 px-6 max-w-4xl mx-auto"
           >
             <SectionHeader 
               number="05" 
@@ -2692,7 +2762,7 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="py-32 px-6 max-w-4xl mx-auto space-y-12"
+            className="py-8 md:py-32 px-6 max-w-4xl mx-auto space-y-12"
           >
             <SectionHeader 
               number="06" 
@@ -2812,8 +2882,8 @@ export default function App() {
       </AnimatePresence>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] w-[calc(100%-2rem)] md:w-auto max-w-lg md:max-w-none">
-        <div className="glass-panel px-2 md:px-6 py-3 flex items-center justify-around md:justify-center md:gap-8 backdrop-blur-2xl bg-obsidian/40 border-white/10 shadow-2xl rounded-3xl">
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] w-[calc(100%-2rem)] md:w-auto max-w-lg md:max-w-none overflow-x-auto scrollbar-hide">
+        <div className="glass-panel px-2 md:px-6 py-3 flex items-center justify-between md:justify-center md:gap-8 backdrop-blur-2xl bg-obsidian/40 border-white/10 shadow-2xl rounded-3xl min-w-max md:min-w-0">
           {[
             { id: 'home', icon: Home, label: '健康趋势' },
             { id: 'matrix', icon: Compass, label: '脏腑图谱' },
@@ -2837,7 +2907,7 @@ export default function App() {
         </div>
       </nav>
 
-      <footer className="py-24 px-6 border-t border-white/5 bg-ink/30">
+      <footer className="py-12 md:py-24 px-6 border-t border-white/5 bg-ink/30">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-jade/10 flex items-center justify-center">
