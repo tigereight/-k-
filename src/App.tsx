@@ -395,14 +395,16 @@ export default function App() {
       .replace(/\\n/g, '\n')
       
       // 2. Remove backslash escapes before common markdown/special characters
-      // This is very common in Qwen output when it tries to be "safe"
       .replace(/\\([#\-\*\_\!\[\]\(\)\.\>\=\+])/g, '$1')
+      .replace(/\\/g, '') // Thoroughly remove remaining backslashes
       
       // 3. Remove specific unwanted symbols that AI sometimes adds
       .replace(/\->/g, ' ')
       .replace(/=>/g, ' ')
       .replace(/【/g, '\n\n## ')
       .replace(/】/g, '\n')
+      .replace(/(?<!#)#(?!#)/g, '') // Remove single # symbols that are not headers (scattered ones)
+      .replace(/[^\x00-\x7F\u4e00-\u9fa5，。？！；：‘’“”、《》〈〉（）【】—…\n\r\t ]/g, '') // Filter unusual special characters
       
       // 4. Handle the [ ] section markers if AI still uses them
       .replace(/\[/g, '\n\n## ')
@@ -1697,7 +1699,7 @@ export default function App() {
                       </div>
                     )}
                   </button>
-                  <p className="text-[10px] text-zinc-600 italic">* 生成的报告将永久保存在您的“档案中心”中，支持随时查阅与导出。</p>
+                  <p className="text-[10px] text-zinc-600 italic">* 生成的报告将永久同步至您的‘健康档案’中，支持随时查阅。</p>
                 </div>
               </div>
             </div>
@@ -1794,7 +1796,7 @@ export default function App() {
                         </>
                       )}
                     </button>
-                    <p className="text-[10px] text-zinc-600 italic">* 生成的报告将永久保存在您的“档案中心”中，支持随时查阅与导出。</p>
+                    <p className="text-[10px] text-zinc-600 italic">* 生成的报告将永久同步至您的‘健康档案’中，支持随时查阅。</p>
                   </div>
                 </div>
 
@@ -2134,7 +2136,7 @@ export default function App() {
                       "生成空间健康报告 (消耗2草药)"
                     )}
                   </button>
-                  <p className="text-[10px] text-zinc-600 italic">* 生成的报告将永久保存在您的“档案中心”中，支持随时查阅与导出。</p>
+                  <p className="text-[10px] text-zinc-600 italic">* 生成的报告将永久同步至您的‘健康档案’中，支持随时查阅。</p>
                 </div>
 
                 {spatialReport && (
@@ -2510,9 +2512,9 @@ export default function App() {
                         </div>
                         <div>
                           <p className="text-white font-bold serif">
-                            {item.report_type === 'wuyun' ? '五运六气报告' :
-                             item.report_type === 'ziwei' ? '紫微斗数报告' :
-                             '空间能量报告'}
+                            {item.report_type === 'wuyun' ? '健康趋势报告' :
+                             item.report_type === 'ziwei' ? '脏腑图谱报告' :
+                             '居家风水报告'}
                           </p>
                           <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
                             {new Date(item.created_at).toLocaleString()}
@@ -2545,7 +2547,7 @@ export default function App() {
                           className="overflow-hidden"
                         >
                           <div className="pt-6 border-t border-white/5 mt-2">
-                            <div className="prose prose-invert prose-sm max-w-none markdown-body">
+                            <div className="prose prose-invert prose-jade max-w-none custom-report-style">
                               <Markdown remarkPlugins={[remarkGfm]}>
                                 {item.content.report}
                               </Markdown>
@@ -2784,20 +2786,15 @@ export default function App() {
 
         .custom-report-style {
           font-family: 'Inter', system-ui, -apple-system, sans-serif;
-          color: rgba(255, 255, 255, 0.85);
-          line-height: 2;
-          font-size: 1.05rem;
+          color: rgba(212, 212, 216, 0.8);
+          line-height: 1.8;
+          font-size: 0.95rem;
           letter-spacing: 0.015em;
         }
         .custom-report-style h1, 
         .custom-report-style h2, 
         .custom-report-style h3 {
           font-family: 'Playfair Display', serif;
-          color: #ffffff;
-          margin-top: 4rem;
-          margin-bottom: 2rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-          padding-bottom: 0.75rem;
           letter-spacing: -0.02em;
         }
         .custom-report-style h1 { 
@@ -2807,32 +2804,28 @@ export default function App() {
           border-bottom: 3px solid rgba(212, 175, 55, 0.5); 
           text-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
           margin-top: 0;
+          margin-bottom: 2rem;
+          padding-bottom: 0.75rem;
         }
         .custom-report-style h2 { 
-          font-size: 1.85rem; 
-          font-weight: 700; 
-          color: #f8fafc;
-          position: relative;
-        }
-        .custom-report-style h2::after {
-          content: "";
-          position: absolute;
-          bottom: -1px;
-          left: 0;
-          width: 60px;
-          height: 3px;
-          background: #D4AF37;
+          color: #ffffff;
+          font-weight: 800;
+          font-size: 1.5rem;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+          padding-bottom: 0.5rem;
+          margin-top: 2.5rem;
+          margin-bottom: 1.5rem;
         }
         .custom-report-style h3 { 
-          font-size: 1.4rem; 
-          font-weight: 600; 
-          color: #f1f5f9; 
-          border-bottom: none;
-          margin-top: 2.5rem;
+          color: #D4AF37;
+          font-weight: 700;
+          font-size: 1.1rem;
+          margin-top: 1.5rem;
+          margin-bottom: 1rem;
         }
         
         .custom-report-style p {
-          margin-bottom: 1.75rem;
+          margin-bottom: 1.5rem;
           text-align: justify;
           hyphens: auto;
         }
