@@ -306,7 +306,7 @@ const MatrixAstrolabe = ({ data }: { data: any }) => {
 const SectionHeader = ({ title, subtitle, number }: { title: string; subtitle?: string; number: string }) => (
   <div className="mb-12">
     <div className="flex items-center gap-4 mb-2">
-      <span className="text-[10px] font-mono text-jade tracking-[0.3em] uppercase">Phase {number}</span>
+      <span className="text-[9px] font-mono text-jade tracking-[0.3em] uppercase">Phase {number}</span>
       <div className="h-px flex-1 bg-white/10"></div>
     </div>
     <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight serif">{title}</h2>
@@ -1113,9 +1113,9 @@ export default function App() {
           return `
             <div class="font-sans">
               <div class="font-bold mb-2 border-b border-white/10 pb-1">年龄: ${age} 岁</div>
-              <div class="flex justify-between gap-8 mb-1"><span class="text-zinc-500">开盘指数</span><span class="font-mono">${o}</span></div>
-              <div class="flex justify-between gap-8 mb-1"><span class="text-zinc-500">收盘指数</span><span class="font-mono">${c}</span></div>
-              <div class="flex justify-between gap-8"><span class="text-zinc-500">年度变动</span><span class="font-mono" style="color:${col}">${diffVal > 0 ? '+' : ''}${diffVal}</span></div>
+              <div class="flex justify-between gap-8 mb-1"><span class="text-zinc-500">岁初生命力</span><span class="font-mono">${o}</span></div>
+              <div class="flex justify-between gap-8 mb-1"><span class="text-zinc-500">岁末生命力</span><span class="font-mono">${c}</span></div>
+              <div class="flex justify-between gap-8"><span class="text-zinc-500">年度盈亏</span><span class="font-mono" style="color:${col}">${diffVal > 0 ? '+' : ''}${diffVal}</span></div>
             </div>
           `;
         }
@@ -1317,7 +1317,7 @@ export default function App() {
 
           <div className="pt-12">
             <motion.a 
-              href="#input-section"
+              href="#features-section"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="group inline-flex items-center gap-3 px-10 py-5 bg-white text-obsidian rounded-full font-bold transition-all hover:bg-jade hover:text-white"
@@ -1335,32 +1335,36 @@ export default function App() {
       </section>
 
       {/* Features Grid Section */}
-      <section className="py-24 px-6 max-w-7xl mx-auto">
+      <section id="features-section" className="py-24 px-6 max-w-7xl mx-auto">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
             {
               icon: <Activity className="w-6 h-6 text-jade" />,
               title: "逐年健康 K 线图",
               desc: "基于五运六气气象医学模型，推演您 0-60 岁的逐年健康起伏趋势与关键转折点。",
-              color: "jade"
+              color: "jade",
+              action: () => document.getElementById('input-section')?.scrollIntoView({ behavior: 'smooth' })
             },
             {
               icon: <Compass className="w-6 h-6 text-gold" />,
               title: "脏腑经络弱点扫描",
               desc: "透过东方星象算法，透视您十二脏腑经络的先天能量强弱，提供结构性健康风险预警。",
-              color: "gold"
+              color: "gold",
+              action: () => setActiveTab('matrix')
             },
             {
               icon: <Shield className="w-6 h-6 text-blue-400" />,
               title: "居住环境应力评估",
               desc: "精算房屋空间布局对人体生物节律的影响，帮您规避隐形的环境健康杀手。",
-              color: "blue"
+              color: "blue",
+              action: () => setActiveTab('spatial')
             },
             {
               icon: <MessageSquare className="w-6 h-6 text-purple-400" />,
               title: "AI 专家中医问诊",
               desc: "基于最新中医体质学说，通过多轮智能对话精准辨识您的九种体质并提供养生建议。",
-              color: "purple"
+              color: "purple",
+              action: () => setActiveTab('insight')
             }
           ].map((feature, i) => (
             <motion.div 
@@ -1369,7 +1373,8 @@ export default function App() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
               viewport={{ once: true }}
-              className="glass-panel p-8 space-y-4 hover:bg-white/[0.05] transition-all group"
+              onClick={feature.action}
+              className="glass-panel p-8 space-y-4 hover:bg-white/[0.05] transition-all group cursor-pointer active:scale-[0.98]"
             >
               <div className={cn(
                 "w-12 h-12 rounded-2xl flex items-center justify-center mb-6",
@@ -2620,26 +2625,26 @@ export default function App() {
       </AnimatePresence>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] w-[calc(100%-3rem)] md:w-auto">
-        <div className="glass-panel px-4 py-3 flex items-center justify-around md:justify-center md:gap-12 backdrop-blur-2xl bg-obsidian/40 border-white/10 shadow-2xl">
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] w-[calc(100%-2rem)] md:w-auto max-w-lg md:max-w-none">
+        <div className="glass-panel px-2 md:px-6 py-3 flex items-center justify-around md:justify-center md:gap-8 backdrop-blur-2xl bg-obsidian/40 border-white/10 shadow-2xl rounded-3xl">
           {[
-            { id: 'home', icon: Home, label: '首页' },
-            { id: 'matrix', icon: Compass, label: '矩阵' },
-            { id: 'spatial', icon: Zap, label: '空间' },
-            { id: 'insight', icon: Sparkles, label: '洞察' },
-            { id: 'history', icon: History, label: '历史' },
-            { id: 'profile', icon: User, label: '我的' }
+            { id: 'home', icon: Home, label: '健康趋势' },
+            { id: 'matrix', icon: Compass, label: '脏腑图谱' },
+            { id: 'spatial', icon: Zap, label: '居家风水' },
+            { id: 'insight', icon: Sparkles, label: '体质辨识' },
+            { id: 'history', icon: History, label: '健康档案' },
+            { id: 'profile', icon: User, label: '个人中心' }
           ].map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id as any)}
               className={cn(
-                "flex flex-col items-center gap-1 px-4 py-1 rounded-2xl transition-all duration-300",
+                "flex flex-col items-center gap-1.5 px-2 md:px-4 py-1 rounded-2xl transition-all duration-300 min-w-[64px] md:min-w-0",
                 activeTab === item.id ? "text-jade scale-110" : "text-zinc-500 hover:text-zinc-300"
               )}
             >
               <item.icon className={cn("w-5 h-5", activeTab === item.id && "animate-pulse")} />
-              <span className="text-[10px] font-medium tracking-tighter">{item.label}</span>
+              <span className="text-[9px] md:text-[10px] font-medium tracking-tighter whitespace-nowrap">{item.label}</span>
             </button>
           ))}
         </div>
