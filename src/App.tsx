@@ -42,63 +42,6 @@ import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { RechargeModal } from './components/RechargeModal';
 import { supabase } from './lib/supabase';
 
-// --- Components ---
-const TermTooltip = ({ term, definition }: { term: string; definition: string }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const tooltipRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
-        setIsVisible(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative inline-flex items-center ml-1 group" ref={tooltipRef}>
-      <button
-        onMouseEnter={() => setIsVisible(true)}
-        onMouseLeave={() => setIsVisible(false)}
-        onClick={() => setIsVisible(!isVisible)}
-        className="p-0.5 rounded-full transition-colors focus:outline-none"
-        aria-label={`Definition for ${term}`}
-      >
-        <HelpCircle 
-          size={12} 
-          className={cn(
-            "transition-colors",
-            isVisible ? "text-gold" : "text-jade/40 group-hover:text-gold"
-          )} 
-        />
-      </button>
-      
-      <AnimatePresence>
-        {isVisible && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 5 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 5 }}
-            className={cn(
-              "absolute z-[100] w-48 p-3 rounded-lg bg-black/90 backdrop-blur-md border border-white/10 shadow-2xl pointer-events-none",
-              "left-1/2 -translate-x-1/2 bottom-full mb-2",
-              "sm:w-64"
-            )}
-          >
-            <div className="text-[11px] leading-relaxed text-zinc-300 font-sans">
-              <span className="font-bold text-gold block mb-1">{term}</span>
-              {definition}
-            </div>
-            <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-black/90" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -154,17 +97,6 @@ interface HistoryItem {
 }
 
 // --- Constants ---
-const TERM_DEFINITIONS = {
-  "干支纪年": "东方古老的纪年方式，由天干与地支组合，反映年份基础宇宙磁场能量。",
-  "岁运": "全年的气象总司令。主导全年五行能量的偏向（如木、火、土、金、水）。",
-  "司天": "主导上半年（大寒至小暑）的气候基调，是决定全年“天气”属性的核心。",
-  "在泉": "主导下半年（大暑至小寒）的气候基调，是决定全年“地气”属性的核心。",
-  "主位": "每年固定不变的五行节律（如春木夏火），是生命适应自然的常规背景。",
-  "客位": "逐年轮动、变幻无常的动态气象能量，是导致体质波动和健康风险的主要诱因。",
-  "太过": "该年份对应的五行能量过盛，容易产生因能量亢奋导致的身体压力。",
-  "不及": "该年份对应的五行能量虚弱，代表该维度的身体防线较为脆弱，需针对性调养。"
-};
-
 const TIME_OPTIONS = [
   "子时 (23:00-01:00)", "丑时 (01:00-03:00)", "寅时 (03:00-05:00)", 
   "卯时 (05:00-07:00)", "辰时 (07:00-09:00)", "巳时 (09:00-11:00)", 
@@ -190,6 +122,43 @@ const StarMutagenBadge = ({ mutagen }: { mutagen: string }) => {
     )}>
       {mutagen}
     </span>
+  );
+};
+
+const TermTooltip = ({ title, content }: { title: string; content: string | React.ReactNode }) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <div className="relative inline-flex items-center ml-1.5 group">
+      <button
+        onMouseEnter={() => setIsVisible(true)}
+        onMouseLeave={() => setIsVisible(false)}
+        onClick={() => setIsVisible(!isVisible)}
+        className="transition-colors duration-200 focus:outline-none"
+      >
+        <HelpCircle size={12} className={cn("transition-colors", isVisible ? "text-gold" : "text-jade/40")} />
+      </button>
+      <AnimatePresence>
+        {isVisible && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 5 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 5 }}
+            className="absolute z-[100] bottom-full left-1/2 -translate-x-1/2 mb-2 w-60 p-3 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl pointer-events-none"
+          >
+            <div className="text-[11px] text-zinc-200 leading-relaxed">
+              {typeof content === 'string' ? (
+                <p>
+                  <span className="font-bold text-gold mr-1">{title}：</span>
+                  {content}
+                </p>
+              ) : content}
+            </div>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-black/90" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 
@@ -459,39 +428,54 @@ export default function App() {
     if (!text) return "";
     
     let cleaned = text
-      // 1. Remove brackets and backslashes
-      .replace(/[\[\]\\]/g, '')
-      // 2. Handle double-escaped newlines
+      // 1. Handle double-escaped newlines and literal \n strings
+      .replace(/\\\\n/g, '\n')
       .replace(/\\n/g, '\n')
-      // 3. Ensure headers have a space after #
+      
+      // 2. Remove backslash escapes before common markdown/special characters
+      .replace(/\\([#\-\*\_\!\[\]\(\)\.\>\=\+])/g, '$1')
+      .replace(/\\/g, '') // Thoroughly remove remaining backslashes
+      
+      // 3. Remove specific unwanted symbols that AI sometimes adds
+      .replace(/\->/g, ' ')
+      .replace(/=>/g, ' ')
+      .replace(/【/g, '\n\n## ')
+      .replace(/】/g, '\n')
+      .replace(/(?<!#)#(?!#)/g, '') // Remove single # symbols that are not headers (scattered ones)
+      .replace(/[^\x00-\x7F\u4e00-\u9fa5，。？！；：‘’“”、《》〈〉（）【】—…\n\r\t ]/g, '') // Filter unusual special characters
+      
+      // 4. Handle the [ ] section markers if AI still uses them
+      .replace(/\[/g, '\n\n## ')
+      .replace(/\]/g, '\n')
+      
+      // 5. Ensure headers have a space after # for proper markdown parsing
       .replace(/^(#+)([^\s#])/mg, '$1 $2')
-      // 4. Remove stray # at start/end of lines that aren't headers
-      .replace(/(?<!#)#(?!#|\s)/g, '')
+      
+      // 6. Collapse excessive newlines but keep double newlines for paragraphs
+      .replace(/\n{3,}/g, '\n\n')
       .trim();
 
-    // 5. Heuristic cleaning for each line
-    const lines = cleaned.split('\n').map(line => {
-      const trimmed = line.trim();
-      if (!trimmed) return "";
-      
-      // If line contains "风险" or "策略" or "建议" and isn't already a header, make it h3
-      if ((trimmed.includes('风险') || trimmed.includes('策略') || trimmed.includes('建议')) && !trimmed.startsWith('#')) {
-        return `### ${trimmed}`;
-      }
+    // 7. Heuristic cleaning for each line
+    cleaned = cleaned.split('\n').map(line => {
+      let trimmedLine = line.trim();
       
       // Convert **Text** to ## Text if it's the whole line (likely a title)
-      const boldHeaderMatch = trimmed.match(/^\*\*(.*?)\*\*$/);
+      const boldHeaderMatch = trimmedLine.match(/^\*\*(.*?)\*\*$/);
       if (boldHeaderMatch && boldHeaderMatch[1].length < 60) {
         return `## ${boldHeaderMatch[1]}`;
       }
       
-      return trimmed;
-    });
+      // Remove any trailing backslashes
+      trimmedLine = trimmedLine.replace(/\\+$/, '');
+      
+      return trimmedLine;
+    }).join('\n');
 
-    // 6. Reconstruct with forced paragraph breaks
-    return lines
-      .filter(line => line !== "")
-      .join('\n\n');
+    // 8. Final pass to ensure no weird artifacts remain
+    return cleaned
+      .replace(/\n\n\n+/g, '\n\n')
+      .replace(/\\/g, '') // Remove any remaining stray backslashes
+      .trim();
   };
 
   const generateHealthReport = async () => {
@@ -1645,18 +1629,15 @@ export default function App() {
                   
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { label: "干支纪年", value: calcData.wylq_summary.ganzhi, color: "text-jade" },
-                      { label: "岁运", value: calcData.wylq_summary.suiyun, color: "text-gold" },
-                      { label: "司天", value: calcData.wylq_summary.sitian, color: "text-orange-400" },
-                      { label: "在泉", value: calcData.wylq_summary.zaiquan, color: "text-purple-400" }
+                      { label: "干支纪年", value: calcData.wylq_summary.ganzhi, color: "text-jade", tooltip: "东方古老的纪年方式，由天干与地支组合，反映年份基础宇宙磁场能量。" },
+                      { label: "岁运", value: calcData.wylq_summary.suiyun, color: "text-gold", tooltip: "全年的气象总司令。主导全年五行能量的偏向（如木、火、土、金、水）。" },
+                      { label: "司天", value: calcData.wylq_summary.sitian, color: "text-orange-400", tooltip: "主导上半年（大寒至小暑）的气候基调，是决定全年“天气”属性的核心。" },
+                      { label: "在泉", value: calcData.wylq_summary.zaiquan, color: "text-purple-400", tooltip: "主导下半年（大暑至小寒）的气候基调，是决定全年“地气”属性的核心。" }
                     ].map((item, i) => (
                       <div key={i} className="glass-panel p-6 space-y-2">
                         <div className="flex items-center">
                           <span className="text-[10px] text-zinc-500 uppercase tracking-widest">{item.label}</span>
-                          <TermTooltip 
-                            term={item.label} 
-                            definition={TERM_DEFINITIONS[item.label as keyof typeof TERM_DEFINITIONS]} 
-                          />
+                          <TermTooltip title={item.label} content={item.tooltip} />
                         </div>
                         <p className={cn("text-lg font-bold serif", item.color)}>{item.value}</p>
                       </div>
@@ -1667,30 +1648,32 @@ export default function App() {
                     <div className="glass-panel p-6 border-l-2 border-l-jade">
                       <div className="flex items-center gap-2 mb-3">
                         <Shield className="w-4 h-4 text-jade" />
-                        <div className="flex items-center">
-                          <span className="text-xs text-zinc-400 uppercase tracking-widest">当日五运格局</span>
-                          <div className="flex gap-1 ml-1">
-                            <TermTooltip term="主位" definition={TERM_DEFINITIONS["主位"]} />
-                            <TermTooltip term="客位" definition={TERM_DEFINITIONS["客位"]} />
-                          </div>
-                        </div>
+                        <span className="text-xs text-zinc-400 uppercase tracking-widest">当日五运格局</span>
+                        <TermTooltip 
+                          title="五运百科" 
+                          content={
+                            <div className="space-y-2">
+                              <p><span className="text-gold font-bold">太过：</span>该年份对应的五行能量过盛，容易产生因能量亢奋导致的身体压力。</p>
+                              <p><span className="text-gold font-bold">不及：</span>该年份对应的五行能量虚弱，代表该维度的身体防线较为脆弱，需针对性调养。</p>
+                            </div>
+                          } 
+                        />
                       </div>
-                      <p className="text-zinc-300 leading-relaxed">
-                        {calcData.wylq_summary.daily_fortune}
-                        {calcData.wylq_summary.daily_fortune.includes('太过') && <TermTooltip term="太过" definition={TERM_DEFINITIONS["太过"]} />}
-                        {calcData.wylq_summary.daily_fortune.includes('不及') && <TermTooltip term="不及" definition={TERM_DEFINITIONS["不及"]} />}
-                      </p>
+                      <p className="text-zinc-300 leading-relaxed">{calcData.wylq_summary.daily_fortune}</p>
                     </div>
                     <div className="glass-panel p-6 border-l-2 border-l-gold">
                       <div className="flex items-center gap-2 mb-3">
                         <Sparkles className="w-4 h-4 text-gold" />
-                        <div className="flex items-center">
-                          <span className="text-xs text-zinc-400 uppercase tracking-widest">当日六气格局</span>
-                          <div className="flex gap-1 ml-1">
-                            <TermTooltip term="主位" definition={TERM_DEFINITIONS["主位"]} />
-                            <TermTooltip term="客位" definition={TERM_DEFINITIONS["客位"]} />
-                          </div>
-                        </div>
+                        <span className="text-xs text-zinc-400 uppercase tracking-widest">当日六气格局</span>
+                        <TermTooltip 
+                          title="六气百科" 
+                          content={
+                            <div className="space-y-2">
+                              <p><span className="text-gold font-bold">主位/主：</span>每年固定不变的五行节律（如春木夏火），是生命适应自然的常规背景。</p>
+                              <p><span className="text-gold font-bold">客位/客：</span>逐年轮动、变幻无常的动态气象能量，是导致体质波动和健康风险的主要诱因。</p>
+                            </div>
+                          } 
+                        />
                       </div>
                       <p className="text-zinc-300 leading-relaxed">{calcData.wylq_summary.daily_qi}</p>
                     </div>
@@ -2625,7 +2608,7 @@ export default function App() {
                           <div className="pt-6 border-t border-white/5 mt-2">
                             <div className="prose prose-invert prose-jade max-w-none custom-report-style">
                               <Markdown remarkPlugins={[remarkGfm]}>
-                                {formatAIReport(item.content.report)}
+                                {item.content.report}
                               </Markdown>
                             </div>
                             
@@ -2862,44 +2845,120 @@ export default function App() {
 
         .custom-report-style {
           font-family: 'Inter', system-ui, -apple-system, sans-serif;
+          color: rgba(212, 212, 216, 0.8);
+          line-height: 1.8;
+          font-size: 0.95rem;
+          letter-spacing: 0.015em;
+        }
+        .custom-report-style h1, 
+        .custom-report-style h2, 
+        .custom-report-style h3 {
+          font-family: 'Playfair Display', serif;
+          letter-spacing: -0.02em;
+        }
+        .custom-report-style h1 { 
+          font-size: 2.5rem; 
+          font-weight: 800; 
+          color: #D4AF37; 
+          border-bottom: 3px solid rgba(212, 175, 55, 0.5); 
+          text-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
+          margin-top: 0;
+          margin-bottom: 2rem;
+          padding-bottom: 0.75rem;
         }
         .custom-report-style h2 { 
-          color: #FFFFFF !important; 
-          font-size: 1.4rem !important; 
-          font-weight: 800 !important; 
-          margin-bottom: 1.5rem !important; 
-          border-left: 4px solid #D4AF37 !important; 
-          padding-left: 0.8rem !important;
-          border-bottom: none !important;
-          margin-top: 2rem !important;
+          color: #ffffff;
+          font-weight: 800;
+          font-size: 1.5rem;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+          padding-bottom: 0.5rem;
+          margin-top: 2.5rem;
+          margin-bottom: 1.5rem;
         }
         .custom-report-style h3 { 
-          color: #D4AF37 !important; 
-          font-size: 1.1rem !important; 
-          font-weight: 700 !important; 
-          margin-top: 1.2rem !important; 
-          margin-bottom: 0.8rem !important;
+          color: #D4AF37;
+          font-weight: 700;
+          font-size: 1.1rem;
+          margin-top: 1.5rem;
+          margin-bottom: 1rem;
         }
-        .custom-report-style p, .custom-report-style li {
-          color: #A1A1AA !important; 
-          font-size: 0.95rem !important; 
-          line-height: 1.8 !important; 
-          filter: brightness(0.8) !important;
-          margin-bottom: 1rem !important;
-        }
-        .custom-report-style strong {
-          color: #FACC15 !important;
-        }
-        .custom-report-style ul, .custom-report-style ol {
+        
+        .custom-report-style p {
           margin-bottom: 1.5rem;
+          text-align: justify;
+          hyphens: auto;
+        }
+        
+        .custom-report-style ul, .custom-report-style ol {
+          margin-bottom: 2rem;
           padding-left: 1.5rem;
         }
         .custom-report-style li {
+          margin-bottom: 0.75rem;
           list-style-type: disc;
-          position: relative;
+          color: rgba(255, 255, 255, 0.75);
         }
         .custom-report-style li::marker {
           color: #D4AF37;
+        }
+        
+        .custom-report-style blockquote {
+          border-left: 2px solid #D4AF37;
+          background: rgba(255, 255, 255, 0.02);
+          padding: 0.85rem 1.15rem;
+          margin: 1.25rem 0;
+          font-style: italic;
+          color: rgba(255, 255, 255, 0.75);
+          font-size: 0.8rem;
+        }
+        
+        .custom-report-style table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 1.25rem 0;
+          font-size: 0.725rem;
+          background: rgba(255, 255, 255, 0.01);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .custom-report-style th {
+          background: rgba(255, 255, 255, 0.03);
+          color: #f8fafc;
+          text-align: left;
+          padding: 0.5rem;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          font-weight: 600;
+        }
+        .custom-report-style td {
+          padding: 0.5rem;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          color: rgba(255, 255, 255, 0.5);
+        }
+        .custom-report-style tr:hover {
+          background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .custom-report-style strong {
+          color: #D4AF37;
+          font-weight: 600;
+        }
+        
+        .custom-report-style ul, .custom-report-style ol {
+          margin-bottom: 0.85rem;
+          padding-left: 1rem;
+        }
+        .custom-report-style li {
+          margin-bottom: 0.35rem;
+          list-style-type: none;
+          position: relative;
+        }
+        .custom-report-style li::before {
+          content: "•";
+          color: #64748b; /* Slate 400 */
+          position: absolute;
+          left: -1rem;
+          font-weight: bold;
         }
       `}</style>
       <LoginModal 
