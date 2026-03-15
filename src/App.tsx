@@ -1408,7 +1408,7 @@ export default function App() {
           </h1>
           
           <p className="text-xl text-zinc-500 max-w-2xl mx-auto font-light leading-relaxed tracking-wide">
-            以AI深度解析古籍：预判一生健康趋势，扫描脏腑弱点，优化居家布局 辨析个人体质，为您定制专属生命资产研报
+            以AI深度解析古籍：预判一生健康趋势，扫描脏腑弱点，优化居家布局 ，辨析个人体质——为您定制专属生命资产研报
           </p>
 
           <div className="pt-12">
@@ -1985,7 +1985,7 @@ export default function App() {
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-white serif">矩阵尚未初始化</h3>
-                  <p className="text-zinc-500 text-sm">请先在首页输入您的出生信息并点击“开启演算”以同步能量矩阵。</p>
+                  <p className="text-zinc-500 text-sm">请先在首页输入您的出生信息并点击“生成健康K线图”以同步能量矩阵。</p>
                 </div>
                 <button 
                   onClick={() => setActiveTab('home')}
