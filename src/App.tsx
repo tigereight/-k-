@@ -538,6 +538,35 @@ export default function App() {
   const [currentHistoryId, setCurrentHistoryId] = useState<number | null>(null);
 
   const [activeTab, setActiveTab] = useState<'home' | 'matrix' | 'insight' | 'spatial' | 'history' | 'profile'>('home');
+  
+  // --- Scroll Memory Logic ---
+  const scrollPositions = useRef<Record<string, number>>({});
+  const prevTab = useRef<string>(activeTab);
+
+  useEffect(() => {
+    // Initial load: scroll to top
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
+    // Save scroll position of the previous tab
+    scrollPositions.current[prevTab.current] = window.scrollY;
+    
+    // Update previous tab reference
+    const currentTab = activeTab;
+    prevTab.current = currentTab;
+
+    // Restore scroll position of the new tab
+    const savedPosition = scrollPositions.current[currentTab] || 0;
+    
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      window.scrollTo({
+        top: savedPosition,
+        behavior: 'instant'
+      });
+    });
+  }, [activeTab]);
   const [user, setUser] = useState<UserInfo>({ loggedIn: false });
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
@@ -1282,9 +1311,10 @@ export default function App() {
         {activeTab === 'home' && (
           <motion.div 
             key="home"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
           >
             {/* Hero Section */}
             <section className="relative h-screen flex flex-col items-center justify-center overflow-hidden px-6">
@@ -1407,8 +1437,8 @@ export default function App() {
                   { id: 'year', label: "出生年份", value: year, setter: setYear, options: years },
                   { id: 'month', label: "月份", value: month, setter: setMonth, options: months },
                   { id: 'day', label: "日期", value: day, setter: setDay, options: days },
-                  { id: 'gender', label: "性别", note: "深度分析所需", value: gender, setter: setGender, options: ['male', 'female'], labels: { 'male': '乾造 (男)', 'female': '坤造 (女)' } },
-                  { id: 'time', label: "时辰", note: "深度分析所需", value: timeIndex, setter: setTimeIndex, options: TIME_OPTIONS.map((_, i) => i), labels: TIME_OPTIONS }
+                  { id: 'gender', label: "性别", note: "脏腑图谱必需", value: gender, setter: setGender, options: ['male', 'female'], labels: { 'male': '乾造 (男)', 'female': '坤造 (女)' } },
+                  { id: 'time', label: "时辰", note: "脏腑图谱必需", value: timeIndex, setter: setTimeIndex, options: TIME_OPTIONS.map((_, i) => i), labels: TIME_OPTIONS }
                 ].map((item) => (
                   <div key={item.id} className="space-y-3">
                     <div className="flex items-center justify-between px-1">
@@ -1679,9 +1709,10 @@ export default function App() {
         {activeTab === 'matrix' && (
           <motion.section
             key="matrix"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="pb-32"
           >
             {hasCalculated && astrolabeData ? (
@@ -1877,9 +1908,10 @@ export default function App() {
         {activeTab === 'spatial' && (
           <motion.section
             key="spatial"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="py-32 px-6 max-w-7xl mx-auto min-h-screen"
           >
             <SectionHeader 
@@ -2141,9 +2173,10 @@ export default function App() {
         {activeTab === 'insight' && (
           <motion.section
             key="insight"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="py-32 px-6 max-w-4xl mx-auto min-h-screen"
           >
             <SectionHeader 
@@ -2356,13 +2389,14 @@ export default function App() {
       </AnimatePresence>
 
       {/* History Section */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {activeTab === 'history' && (
           <motion.section 
             key="history"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="py-32 px-6 max-w-4xl mx-auto"
           >
             <SectionHeader 
@@ -2498,13 +2532,14 @@ export default function App() {
       </AnimatePresence>
 
       {/* Profile Section */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {activeTab === 'profile' && (
           <motion.section 
             key="profile"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="py-32 px-6 max-w-4xl mx-auto space-y-12"
           >
             <SectionHeader 
