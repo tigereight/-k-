@@ -624,7 +624,7 @@ export default function App() {
   // Spatial Energy State
   const [spatialRooms, setSpatialRooms] = useState<any[]>([]);
   const [spatialPersons, setSpatialPersons] = useState<any[]>([]);
-  const [selectedTool, setSelectedTool] = useState<{ type: 'room' | 'person', value: string, icon: string } | null>(null);
+  const [activeTool, setActiveTool] = useState<{ type: 'room' | 'person', value: string, icon: string } | null>(null);
   const [compassRotation, setCompassRotation] = useState(0);
   const [selectedRoomIdx, setSelectedRoomIdx] = useState<number | null>(null);
   const [selectedPersonIdx, setSelectedPersonIdx] = useState<number | null>(null);
@@ -793,6 +793,45 @@ export default function App() {
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
+    // Handle activeTool placement
+    if (activeTool) {
+      if (activeTool.type === 'room') {
+        setSpatialRooms(prev => [...prev, {
+          type: activeTool.type,
+          value: activeTool.value,
+          icon: activeTool.icon,
+          x: mx - ROOM_DEFAULT_SIZE / 2,
+          y: my - ROOM_DEFAULT_SIZE / 2,
+          w: ROOM_DEFAULT_SIZE,
+          h: ROOM_DEFAULT_SIZE,
+          rotation: 0
+        }]);
+        setActiveTool(null);
+        return;
+      } else if (activeTool.type === 'person') {
+        const bedroomIdx = findBedroomAt(mx, my);
+        if (bedroomIdx !== null) {
+          setSpatialPersons(prev => {
+            const filtered = prev.filter(p => p.value !== activeTool.value);
+            const count = filtered.filter(p => p.bedroomId === bedroomIdx).length;
+            return [...filtered, {
+              value: activeTool.value,
+              icon: activeTool.icon,
+              bedroomId: bedroomIdx,
+              offsetX: (count % 2) * 30 - 15,
+              offsetY: Math.floor(count / 2) * 25
+            }];
+          });
+          setActiveTool(null);
+          return;
+        } else {
+          alert("请将角色放置在卧室区域内");
+          setActiveTool(null);
+          return;
+        }
+      }
+    }
+
     // Check persons
     for (let i = spatialPersons.length - 1; i >= 0; i--) {
       const p = spatialPersons[i];
@@ -928,42 +967,42 @@ export default function App() {
   };
 
   const handleSpatialClick = (e: React.MouseEvent) => {
-    if (!selectedTool || hasDragged) return;
+    if (!activeTool || hasDragged) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    if (selectedTool.type === 'person') {
+    if (activeTool.type === 'person') {
       const bedroomIdx = findBedroomAt(x, y);
       if (bedroomIdx !== null) {
         const bedroom = spatialRooms[bedroomIdx];
         setSpatialPersons(prev => {
-          const filtered = prev.filter(p => p.value !== selectedTool.value);
+          const filtered = prev.filter(p => p.value !== activeTool.value);
           const count = filtered.filter(p => p.bedroomId === bedroomIdx).length;
           return [...filtered, {
-            value: selectedTool.value,
-            icon: selectedTool.icon,
+            value: activeTool.value,
+            icon: activeTool.icon,
             bedroomId: bedroomIdx,
             offsetX: (count % 2) * 30 - 15,
             offsetY: Math.floor(count / 2) * 25
           }];
         });
-        setSelectedTool(null);
+        setActiveTool(null);
       }
     } else {
       setSpatialRooms(prev => [...prev, {
-        type: selectedTool.type,
-        value: selectedTool.value,
-        icon: selectedTool.icon,
+        type: activeTool.type,
+        value: activeTool.value,
+        icon: activeTool.icon,
         x: x - ROOM_DEFAULT_SIZE / 2,
         y: y - ROOM_DEFAULT_SIZE / 2,
         w: ROOM_DEFAULT_SIZE,
         h: ROOM_DEFAULT_SIZE,
         rotation: 0
       }]);
-      setSelectedTool(null);
+      setActiveTool(null);
     }
   };
 
@@ -2084,15 +2123,15 @@ export default function App() {
                           e.dataTransfer.setData('icon', person.icon);
                         }}
                         onClick={() => {
-                          if (selectedTool?.value === person.value) {
-                            setSelectedTool(null);
+                          if (activeTool?.value === person.value) {
+                            setActiveTool(null);
                           } else {
-                            setSelectedTool({ type: 'person', value: person.value, icon: person.icon });
+                            setActiveTool({ type: 'person', value: person.value, icon: person.icon });
                           }
                         }}
                         className={cn(
                           "flex flex-col items-center justify-center p-3 bg-white/[0.02] border border-white/5 rounded-xl cursor-grab hover:bg-white/[0.05] transition-all active:cursor-grabbing",
-                          selectedTool?.value === person.value && "border-jade bg-jade/10 ring-1 ring-jade/30"
+                          activeTool?.value === person.value && "border-jade bg-jade/10 ring-1 ring-jade/30"
                         )}
                       >
                         <span className="text-2xl mb-1">{person.icon}</span>
@@ -2122,15 +2161,15 @@ export default function App() {
                           e.dataTransfer.setData('icon', room.icon);
                         }}
                         onClick={() => {
-                          if (selectedTool?.value === room.value) {
-                            setSelectedTool(null);
+                          if (activeTool?.value === room.value) {
+                            setActiveTool(null);
                           } else {
-                            setSelectedTool({ type: 'room', value: room.value, icon: room.icon });
+                            setActiveTool({ type: 'room', value: room.value, icon: room.icon });
                           }
                         }}
                         className={cn(
                           "flex flex-col items-center justify-center p-3 bg-white/[0.02] border border-white/5 rounded-xl cursor-grab hover:bg-white/[0.05] transition-all active:cursor-grabbing",
-                          selectedTool?.value === room.value && "border-gold bg-gold/10 ring-1 ring-gold/30"
+                          activeTool?.value === room.value && "border-gold bg-gold/10 ring-1 ring-gold/30"
                         )}
                       >
                         <span className="text-2xl mb-1">{room.icon}</span>
@@ -2170,7 +2209,7 @@ export default function App() {
                       onClick={handleSpatialClick}
                       className={cn(
                         "w-full h-full",
-                        selectedTool ? "cursor-crosshair" : "cursor-default"
+                        activeTool ? "cursor-crosshair" : "cursor-default"
                       )}
                     />
                     
@@ -2238,7 +2277,7 @@ export default function App() {
                     {/* Mobile Instructions */}
                     <p className="block md:hidden text-[10px] text-jade/80 leading-relaxed">
                       <strong>操作指引：</strong><br/>
-                      • 先点击左侧图标选中房间或角色。<br/>
+                      • 先点击图标选中房间或角色。<br/>
                       • 再点击画布中任意空白位置进行放置，角色需放置在房间中。<br/>
                       • 点击已放置元素即可选中，点击画布其他位置进行移动。<br/>
                       • 双击元素进行删除。<br/>
