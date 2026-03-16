@@ -2226,13 +2226,23 @@ export default function App() {
                   </div>
 
                   <div className="glass-panel p-4 bg-jade/5 border-jade/20 text-left">
-                    <p className="text-[10px] text-jade/80 leading-relaxed">
+                    {/* PC Instructions */}
+                    <p className="hidden md:block text-[10px] text-jade/80 leading-relaxed">
                       <strong>操作指引：</strong><br/>
                       • 拖拽房间至画布布局。<br/>
                       • 拖拽角色至卧室内。<br/>
                       • 拖拽边角缩放，顶部圆点旋转。<br/>
                       • 双击元素删除。<br/>
                       • 旋转罗盘调整朝向。
+                    </p>
+                    {/* Mobile Instructions */}
+                    <p className="block md:hidden text-[10px] text-jade/80 leading-relaxed">
+                      <strong>操作指引：</strong><br/>
+                      • 先点击左侧图标选中房间或角色。<br/>
+                      • 再点击画布中任意空白位置进行放置，角色需放置在房间中。<br/>
+                      • 点击已放置元素即可选中，点击画布其他位置进行移动。<br/>
+                      • 双击元素进行删除。<br/>
+                      • 拨动下方罗盘调整房屋朝向。
                     </p>
                   </div>
 

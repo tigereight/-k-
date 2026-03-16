@@ -11,9 +11,10 @@ interface RechargeModalProps {
 }
 
 const PACKAGES = [
-  { id: 'p1', amount: 4, herbs: 6, label: '初试草药' },
-  { id: 'p2', amount: 10, herbs: 16, label: '进阶草药', popular: true },
-  { id: 'p3', amount: 20, herbs: 30, label: '至尊草药' },
+  { id: 'p1', amount: 2, herbs: 2, label: '初试草药', desc: '支持生成一次报告' },
+  { id: 'p2', amount: 5, herbs: 6, label: '进阶畅玩', desc: '玩转全流程三次报告', popular: true },
+  { id: 'p3', amount: 10, herbs: 14, label: '深度探索', desc: '高性价比深度分析' },
+  { id: 'p4', amount: 20, herbs: 30, label: '至尊尊享', desc: '终极健康资产研报' },
 ];
 
 export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, onSuccess }) => {
@@ -107,24 +108,31 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, o
                     key={pkg.id}
                     onClick={() => handleRecharge(pkg.id)}
                     disabled={loading}
-                    className={`relative p-6 rounded-2xl border transition-all flex items-center justify-between group ${
+                    className={`relative p-5 rounded-2xl border transition-all flex items-center justify-between group ${
                       pkg.popular 
-                        ? 'bg-jade/5 border-jade/30 hover:border-jade/50' 
+                        ? 'bg-jade/10 border-jade/40 shadow-[0_0_20px_rgba(0,168,107,0.1)]' 
                         : 'bg-white/[0.02] border-white/10 hover:border-white/20'
                     }`}
                   >
                     {pkg.popular && (
-                      <span className="absolute -top-2.5 left-6 px-2 py-0.5 bg-jade text-[10px] font-bold text-white rounded uppercase tracking-widest">
-                        最受欢迎
-                      </span>
+                      <div className="absolute -top-3 left-6 px-2 py-1 bg-jade rounded flex items-center gap-1 shadow-lg">
+                        <Zap className="w-3 h-3 text-white fill-white" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-tighter">
+                          最受欢迎 · POPULAR
+                        </span>
+                      </div>
                     )}
                     <div className="text-left">
-                      <h3 className="text-white font-bold mb-1">{pkg.label}</h3>
-                      <p className="text-zinc-400 text-sm">{pkg.herbs} 棵草药 🌿</p>
+                      <h3 className="text-white font-bold text-base mb-0.5">{pkg.label}</h3>
+                      <p className="text-zinc-500 text-[10px] mb-1 uppercase tracking-wider">{pkg.desc}</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-jade font-mono font-bold">{pkg.herbs}</span>
+                        <span className="text-[10px] text-zinc-400">棵草药 🌿</span>
+                      </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xl font-bold text-white">¥{pkg.amount}</div>
-                      <div className="text-[10px] text-zinc-500 uppercase tracking-widest">微信支付</div>
+                      <div className="text-2xl font-black text-white tracking-tighter">¥{pkg.amount}</div>
+                      <div className="text-[9px] text-zinc-500 font-mono uppercase tracking-widest">WeChat Pay</div>
                     </div>
                   </button>
                 ))}
