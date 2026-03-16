@@ -72,7 +72,17 @@ async function startServer() {
     });
   });
 
-  // Auth Middleware
+  // Helper to generate unique invite code
+function generateInviteCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 12; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// Auth Middleware
   const isAuthenticated = (req: any, res: any, next: any) => {
     if (req.session.userId) {
       next();
@@ -745,6 +755,107 @@ const ZIWEI_HEALTH_KNOWLEDGE_BASE = `
 // API Routes
 // ==========================================
 
+app.post("/api/register", async (req, res) => {
+  const { email, password, referral_code } = req.body;
+  if (!email || !password) return res.status(400).json({ error: "邮箱和密码不能为空" });
+
+  try {
+    const supabase = getSupabaseAdmin();
+
+    // 1. 唯一性检查
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (existingProfile) {
+      return res.status(400).json({ error: "该邮箱已注册" });
+    }
+
+    // 2. 校验推荐码 (如果提供)
+    let referrerId = null;
+    if (referral_code) {
+      const { data: referrer } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('invite_code', referral_code.toUpperCase())
+        .maybeSingle();
+      
+      if (!referrer) {
+        return res.status(400).json({ error: "推荐码无效" });
+      }
+      referrerId = referrer.id;
+    }
+
+    // 3. 创建用户
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true
+    });
+
+    if (authError) throw authError;
+    const newUser = authData.user;
+
+    // 4. 生成邀请码并创建/更新 Profile
+    const inviteCode = generateInviteCode();
+    
+    // 检查是否已经由 trigger 创建了 profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', newUser.id)
+      .maybeSingle();
+
+    if (profile) {
+      // 更新已存在的 profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          invite_code: inviteCode,
+          referred_by: referrerId,
+          herbs_balance: referrerId ? 2 : 0 // 新用户奖励 2 颗
+        })
+        .eq('id', newUser.id);
+      if (updateError) throw updateError;
+    } else {
+      // 创建新 profile (如果 trigger 没跑)
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: newUser.id,
+          email,
+          invite_code: inviteCode,
+          referred_by: referrerId,
+          herbs_balance: referrerId ? 2 : 0
+        });
+      if (insertError) throw insertError;
+    }
+
+    // 5. 给推荐人增加奖励
+    if (referrerId) {
+      const { data: referrerProfile } = await supabase
+        .from('profiles')
+        .select('herbs_balance')
+        .eq('id', referrerId)
+        .single();
+      
+      if (referrerProfile) {
+        await supabase
+          .from('profiles')
+          .update({ herbs_balance: (referrerProfile.herbs_balance || 0) + 2 })
+          .eq('id', referrerId);
+      }
+    }
+
+    res.json({ success: true, message: referrerId ? "注册成功！已发放推荐奖励。" : "注册成功！" });
+  } catch (error: any) {
+    console.error("Registration error:", error);
+    res.status(500).json({ error: error.message || "注册失败" });
+  }
+});
+
 app.post("/api/login", async (req, res) => {
   const { access_token, refresh_token } = req.body;
   if (!access_token) return res.status(400).json({ error: "Token missing" });
@@ -754,7 +865,15 @@ app.post("/api/login", async (req, res) => {
     if (error || !user) throw error;
 
     req.session.userId = user.id;
-    res.json({ success: true, user });
+
+    // Fetch profile data to include invite_code and herbs_balance
+    const { data: profile } = await getSupabaseAdmin()
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    res.json({ success: true, user: profile || user });
   } catch (error: any) {
     res.status(401).json({ error: "登录验证失败" });
   }

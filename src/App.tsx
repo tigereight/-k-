@@ -27,7 +27,9 @@ import {
   HeartPulse,
   ShieldCheck,
   Printer,
-  HelpCircle
+  HelpCircle,
+  Share2,
+  Gift
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -79,6 +81,7 @@ interface UserInfo {
     id: string;
     email: string;
     herbs_balance: number;
+    invite_code?: string;
   };
 }
 
@@ -2921,6 +2924,56 @@ export default function App() {
                       className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-all text-sm font-medium"
                     >
                       查看历史报告
+                    </button>
+                  </div>
+                </div>
+
+                {/* Referral System */}
+                <div className="glass-panel p-8 bg-gradient-to-br from-gold/5 to-transparent border-gold/10 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center border border-gold/20">
+                        <Share2 className="w-5 h-5 text-gold" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <h3 className="text-lg font-bold text-white serif">推荐奖励计划</h3>
+                        <p className="text-zinc-500 text-xs">邀请好友加入，双方各得 2 颗草药</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col md:flex-row gap-4 items-center">
+                    <div className="flex-1 w-full bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 flex items-center justify-between group hover:border-gold/30 transition-all">
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-zinc-500 uppercase tracking-widest">您的专属推荐码</span>
+                        <div className="text-2xl font-black text-gold tracking-widest serif">
+                          {user.user?.invite_code || '加载中...'}
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          if (user.user?.invite_code) {
+                            navigator.clipboard.writeText(user.user.invite_code);
+                            alert('推荐码已复制');
+                          }
+                        }}
+                        className="p-3 rounded-xl bg-white/5 text-zinc-400 hover:text-gold hover:bg-gold/10 transition-all"
+                        title="复制推荐码"
+                      >
+                        <Copy className="w-5 h-5" />
+                      </button>
+                    </div>
+                    
+                    <button 
+                      onClick={() => {
+                        const inviteMsg = `【健康K线】您的个人预防医学精算系统。输入我的推荐码 [${user.user?.invite_code}] 注册，即可免费获得 2 颗能量草药，开启您的健康趋势测算！立即加入：${window.location.origin}`;
+                        navigator.clipboard.writeText(inviteMsg);
+                        alert('邀请文案已复制到剪贴板，快去分享给好友吧！');
+                      }}
+                      className="w-full md:w-auto bg-gold hover:bg-gold-dark text-black font-bold px-8 py-5 rounded-2xl transition-all shadow-lg shadow-gold/20 flex items-center justify-center gap-2 whitespace-nowrap"
+                    >
+                      <Share2 className="w-5 h-5" />
+                      一键分享邀请
                     </button>
                   </div>
                 </div>

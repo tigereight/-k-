@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Mail, Lock, Loader2, Sparkles } from 'lucide-react';
+import { X, Mail, Lock, Loader2, Sparkles, Gift } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface LoginModalProps {
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
@@ -29,17 +30,28 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
         if (error) throw error;
         setMessage({ type: 'success', text: '重置密码链接已发送至您的邮箱，请检查。' });
       } else if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, referral_code: referralCode })
         });
-        if (error) throw error;
-        setMessage({ type: 'success', text: '注册成功！请使用刚才填写的邮箱和密码登录。' });
+        
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || '注册失败');
+
+        setMessage({ 
+          type: 'success', 
+          text: referralCode 
+            ? '注册成功！由于您使用了推荐码，系统已向您的账户发放 2 颗能量草药，可立即生成首份研报！' 
+            : '注册成功！请使用刚才填写的邮箱和密码登录。' 
+        });
+        
         // 自动切换到登录界面
         setTimeout(() => {
           setIsSignUp(false);
           setMessage(null);
-        }, 2000);
+          setReferralCode('');
+        }, 3000);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -131,6 +143,24 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-jade/50 transition-all"
                       placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {isSignUp && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-500 uppercase tracking-widest ml-1">
+                    推荐码 (Optional)
+                  </label>
+                  <div className="relative">
+                    <Gift className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                    <input
+                      type="text"
+                      value={referralCode}
+                      onChange={(e) => setReferralCode(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-jade/50 transition-all uppercase"
+                      placeholder="输入推荐码，免费测算一次健康研报"
                     />
                   </div>
                 </div>
