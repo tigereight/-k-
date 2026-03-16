@@ -2966,7 +2966,7 @@ export default function App() {
                     
                     <button 
                       onClick={() => {
-                        const inviteMsg = `【健康K线】您的个人预防医学精算系统。输入我的推荐码 [${user.user?.invite_code}] 注册，即可免费获得 2 颗能量草药，开启您的健康趋势测算！立即加入：${window.location.origin}`;
+                        const inviteMsg = `【健康K线】您的个人健康资产预测精算系统。输入我的推荐码 [${user.user?.invite_code}] 注册，即可免费获得 2 颗能量草药，开启您的健康趋势测算！立即加入：${window.location.origin}`;
                         navigator.clipboard.writeText(inviteMsg);
                         alert('邀请文案已复制到剪贴板，快去分享给好友吧！');
                       }}
