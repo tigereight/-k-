@@ -49,12 +49,28 @@ async function startServer() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+  const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
+  
+  if (!dbUrl) {
+    const errorMsg = "CRITICAL: Database connection string (DATABASE_URL or SUPABASE_DB_URL) is missing! " +
+                     "Please set this environment variable in your deployment platform (e.g., Render). " +
+                     "The application cannot start without a database connection for sessions.";
+    console.error(errorMsg);
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(errorMsg);
+    }
+  }
+
   const pgSession = connectPgSimple(session);
   const pgPool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL || process.env.SUPABASE_DB_URL,
-    ssl: {
-      rejectUnauthorized: false
-    }
+    connectionString: dbUrl,
+    // Only apply SSL if we have a URL (prevents issues during local dev if no DB)
+    ssl: dbUrl ? { rejectUnauthorized: false } : false
+  });
+
+  // Handle pool errors to prevent app crash
+  pgPool.on('error', (err) => {
+    console.error('Unexpected error on idle database client', err);
   });
 
   // Session Configuration
