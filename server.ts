@@ -43,37 +43,26 @@ declare module "express-session" {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 1. 统一 Pool 配置 (强制 SSL rejectUnauthorized: false)
+const pgPool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL || process.env.SUPABASE_DB_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+// 全局捕获 Pool 错误
+pgPool.on('error', (err) => console.error('Database Pool Error:', err));
+
+const pgSession = connectPgSimple(session);
+
 async function startServer() {
   const app = express();
   app.set('trust proxy', 1);
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
-  
-  if (!dbUrl) {
-    const errorMsg = "CRITICAL: Database connection string (DATABASE_URL or SUPABASE_DB_URL) is missing! " +
-                     "Please set this environment variable in your deployment platform (e.g., Render). " +
-                     "The application cannot start without a database connection for sessions.";
-    console.error(errorMsg);
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(errorMsg);
-    }
-  }
-
-  const pgSession = connectPgSimple(session);
-  const pgPool = new pg.Pool({
-    connectionString: dbUrl,
-    // Only apply SSL if we have a URL (prevents issues during local dev if no DB)
-    ssl: dbUrl ? { rejectUnauthorized: false } : false
-  });
-
-  // Handle pool errors to prevent app crash
-  pgPool.on('error', (err) => {
-    console.error('Unexpected error on idle database client', err);
-  });
-
-  // Session Configuration
+  // 2. 强关联 Session Store (使用上面配置好的 pgPool)
   app.use(session({
     store: new pgSession({
       pool: pgPool,
