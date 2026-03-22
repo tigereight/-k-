@@ -1,8 +1,6 @@
 import express from "express";
 console.log("Starting server...");
 import session from "express-session";
-import pg from "pg";
-import connectPgSimple from "connect-pg-simple";
 import bcrypt from "bcryptjs";
 import { Solar, Lunar } from "lunar-javascript";
 import path from "path";
@@ -43,38 +41,20 @@ declare module "express-session" {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 1. 统一 Pool 配置 (强制 SSL rejectUnauthorized: false)
-const pgPool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL || process.env.SUPABASE_DB_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
-
-// 全局捕获 Pool 错误
-pgPool.on('error', (err) => console.error('Database Pool Error:', err));
-
-const pgSession = connectPgSimple(session);
-
 async function startServer() {
   const app = express();
   app.set('trust proxy', 1);
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  // 2. 强关联 Session Store (使用上面配置好的 pgPool)
+  // Session Configuration
   app.use(session({
-    store: new pgSession({
-      pool: pgPool,
-      tableName: 'session',
-      createTableIfMissing: true
-    }),
     secret: process.env.SESSION_SECRET || "ahi-secret-key",
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: true,
+      sameSite: "none",
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     }
   }));
@@ -1517,9 +1497,7 @@ ${ZIWEI_HEALTH_KNOWLEDGE_BASE}
     vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(vite.middlewares);
   } else {
-    const distPath = fs.existsSync(path.join(__dirname, "dist")) 
-      ? path.resolve(__dirname, "dist") 
-      : path.resolve(__dirname);
+    const distPath = path.resolve(__dirname, "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
   }
