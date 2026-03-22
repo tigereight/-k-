@@ -1,6 +1,8 @@
 import express from "express";
 console.log("Starting server...");
 import session from "express-session";
+import pg from "pg";
+import connectPgSimple from "connect-pg-simple";
 import bcrypt from "bcryptjs";
 import { Solar, Lunar } from "lunar-javascript";
 import path from "path";
@@ -47,14 +49,25 @@ async function startServer() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+  const pgSession = connectPgSimple(session);
+  const pgPool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL || process.env.SUPABASE_DB_URL,
+    ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false
+  });
+
   // Session Configuration
   app.use(session({
+    store: new pgSession({
+      pool: pgPool,
+      tableName: 'session',
+      createTableIfMissing: true
+    }),
     secret: process.env.SESSION_SECRET || "ahi-secret-key",
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     cookie: {
-      secure: true,
-      sameSite: "none",
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     }
   }));
@@ -1497,7 +1510,9 @@ ${ZIWEI_HEALTH_KNOWLEDGE_BASE}
     vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.resolve(__dirname, "dist");
+    const distPath = fs.existsSync(path.join(__dirname, "dist")) 
+      ? path.resolve(__dirname, "dist") 
+      : path.resolve(__dirname);
     app.use(express.static(distPath));
     app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
   }
